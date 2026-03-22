@@ -63,6 +63,14 @@ export function createApp() {
     res.redirect(`/api/oauth/authorize?${qs}`);
   });
 
+  // SSO logout — destroys Obligate session and redirects back to the calling app
+  app.get('/logout', (req, res) => {
+    const redirectUri = (req.query.redirect_uri as string) || '/login';
+    req.session.destroy(() => {
+      res.redirect(redirectUri);
+    });
+  });
+
   // API routes
   app.use('/api', routes);
 

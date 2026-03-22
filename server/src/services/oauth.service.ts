@@ -2,6 +2,7 @@ import { db } from '../db';
 import { generateToken } from '../utils/crypto';
 import { logger } from '../utils/logger';
 import { permissionGroupService } from './permissionGroup.service';
+import { preferencesService } from './preferences.service';
 
 const AUTH_CODE_TTL_MS = 60 * 1000; // 60 seconds
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -83,6 +84,12 @@ export const oauthService = {
       }).onConflict(['user_id', 'app_id']).merge({ last_login_at: new Date() });
     }
 
+    // Fetch preferences (common + app-specific)
+    const [commonPrefs, appPrefs] = await Promise.all([
+      preferencesService.getCommonPreferences(user.id),
+      preferencesService.getAppPreferences(user.id, appId),
+    ]);
+
     return {
       obligateUserId: user.id,
       username: user.username,
@@ -93,6 +100,10 @@ export const oauthService = {
       teams: resolved.teams,
       authSource: user.auth_source as 'local' | 'ldap',
       linkedLocalUserId: link?.remote_user_id ?? null,
+      preferences: {
+        ...commonPrefs,
+        appSpecific: appPrefs,
+      },
     };
   },
 };

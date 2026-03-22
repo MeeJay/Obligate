@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db';
 import { authService } from '../services/auth.service';
+import { preferencesService } from '../services/preferences.service';
 import { logger } from '../utils/logger';
 
 export const accountRoutes = Router();
@@ -103,5 +104,61 @@ accountRoutes.put('/password', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to change password' });
+  }
+});
+
+/**
+ * GET /api/account/preferences
+ * Returns common preferences + all app-specific preferences with schemas.
+ */
+accountRoutes.get('/preferences', async (req, res) => {
+  try {
+    const userId = req.session.userId!;
+    const [common, appSchemas, allAppPrefs] = await Promise.all([
+      preferencesService.getCommonPreferences(userId),
+      preferencesService.getAllSchemasGroupedByApp(),
+      preferencesService.getAllAppPreferences(userId),
+    ]);
+
+    // Merge schemas with user values
+    const appSections = appSchemas.map(section => ({
+      appId: section.appId,
+      appName: section.appName,
+      appType: section.appType,
+      schemas: section.schemas,
+      values: allAppPrefs[section.appId] ?? {},
+    }));
+
+    res.json({ success: true, data: { common, appSections } });
+  } catch (err) {
+    logger.error(err, 'Failed to get preferences');
+    res.status(500).json({ success: false, error: 'Failed to get preferences' });
+  }
+});
+
+/**
+ * PUT /api/account/preferences/common
+ */
+accountRoutes.put('/preferences/common', async (req, res) => {
+  try {
+    await preferencesService.updateCommonPreferences(req.session.userId!, req.body);
+    const common = await preferencesService.getCommonPreferences(req.session.userId!);
+    res.json({ success: true, data: common });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to update preferences' });
+  }
+});
+
+/**
+ * PUT /api/account/preferences/app/:appId
+ */
+accountRoutes.put('/preferences/app/:appId', async (req, res) => {
+  try {
+    const appId = parseInt(req.params.appId, 10);
+    const prefs = req.body as Record<string, string>;
+    await preferencesService.setAppPreferences(req.session.userId!, appId, prefs);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to update app preferences' });
   }
 });

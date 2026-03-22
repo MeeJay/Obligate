@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { appService } from '../services/app.service';
+import { preferencesService } from '../services/preferences.service';
 import { logger } from '../utils/logger';
 import { db } from '../db';
 
@@ -35,6 +36,35 @@ apiRoutes.get('/connected', requireAppBearer, async (_req, res) => {
   } catch (err) {
     logger.error(err, 'Failed to list connected apps');
     res.status(500).json({ success: false, error: 'Failed to list apps' });
+  }
+});
+
+/**
+ * POST /api/apps/sync-preference-schemas
+ * App registers its specific preference fields (called on app startup or admin config change).
+ */
+apiRoutes.post('/sync-preference-schemas', requireAppBearer, async (req: any, res) => {
+  try {
+    const schemas = req.body.schemas as Array<{
+      key: string; label: string; fieldType: string;
+      options?: string[] | null; defaultValue?: string | null; sortOrder?: number;
+    }>;
+    if (!Array.isArray(schemas)) {
+      res.status(400).json({ success: false, error: 'Missing schemas array' });
+      return;
+    }
+    await preferencesService.syncSchemas(req.appId, schemas.map((s, i) => ({
+      key: s.key,
+      label: s.label,
+      fieldType: s.fieldType as 'text' | 'select' | 'boolean' | 'number',
+      options: s.options ?? null,
+      defaultValue: s.defaultValue ?? null,
+      sortOrder: s.sortOrder ?? i,
+    })));
+    res.json({ success: true });
+  } catch (err) {
+    logger.error(err, 'Failed to sync preference schemas');
+    res.status(500).json({ success: false, error: 'Failed to sync schemas' });
   }
 });
 
