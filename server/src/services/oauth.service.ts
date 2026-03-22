@@ -55,7 +55,7 @@ export const oauthService = {
     } | undefined;
     if (!user) return null;
 
-    // Check if user has access to this app
+    // Check if user is explicitly disabled on this app
     const link = await db('user_app_links')
       .where({ user_id: user.id, app_id: appId })
       .first() as { enabled: boolean; remote_user_id: number | null } | undefined;
@@ -68,13 +68,19 @@ export const oauthService = {
     // Resolve permissions for this app from permission groups
     const resolved = await permissionGroupService.resolveForUserAndApp(user.id, appId);
 
-    // Update last_login_at
+    // DENY access if user has no permission group mapping for this app (no role = no access)
+    // This prevents users without explicit group assignments from accessing apps
+    if (!resolved.role || resolved.role === '') {
+      logger.warn(`User ${user.id} (${user.username}) denied access to app ${appId} (no permission group mapping)`);
+      return null;
+    }
+
+    // Update or create app link on successful access
     if (link) {
       await db('user_app_links')
         .where({ user_id: user.id, app_id: appId })
         .update({ last_login_at: new Date() });
     } else {
-      // Auto-create link on first login
       await db('user_app_links').insert({
         user_id: user.id,
         app_id: appId,

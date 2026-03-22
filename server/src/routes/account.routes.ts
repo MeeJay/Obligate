@@ -13,11 +13,25 @@ export const accountRoutes = Router();
 accountRoutes.get('/apps', async (req, res) => {
   try {
     const userId = req.session.userId!;
+
+    // Only return apps where the user has at least one permission group mapping
+    const authorizedAppIds = await db('user_permission_groups as upg')
+      .join('permission_group_app_mappings as pgam', 'pgam.group_id', 'upg.group_id')
+      .where('upg.user_id', userId)
+      .distinct('pgam.app_id')
+      .pluck('pgam.app_id') as number[];
+
+    if (authorizedAppIds.length === 0) {
+      res.json({ success: true, data: [] });
+      return;
+    }
+
     const rows = await db('connected_apps as ca')
       .leftJoin('user_app_links as ual', function () {
         this.on('ual.app_id', 'ca.id').andOnVal('ual.user_id', userId);
       })
       .where('ca.is_active', true)
+      .whereIn('ca.id', authorizedAppIds)
       .select(
         'ca.id', 'ca.app_type', 'ca.name', 'ca.base_url', 'ca.icon', 'ca.color',
         'ual.remote_user_id', 'ual.enabled', 'ual.first_login_at', 'ual.last_login_at',

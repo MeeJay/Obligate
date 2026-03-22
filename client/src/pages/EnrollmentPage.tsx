@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Check, Shield } from 'lucide-react';
+import { Check, Shield, LogOut } from 'lucide-react';
 import apiClient from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { Button } from '../components/common/Button';
@@ -8,8 +8,15 @@ import { Input } from '../components/common/Input';
 import { ThemePicker } from '../components/ThemePicker';
 import { cn } from '../utils/cn';
 
-type Step = 'language' | 'profile' | 'appearance' | 'notifications';
-const STEPS: Step[] = ['language', 'profile', 'appearance', 'notifications'];
+type Step = 'language' | 'profile' | 'alerts' | 'appearance';
+const STEPS: Step[] = ['language', 'profile', 'alerts', 'appearance'];
+
+const STEP_LABELS: Record<Step, string> = {
+  language: 'Language',
+  profile: 'Profile',
+  alerts: 'Notifications',
+  appearance: 'Appearance',
+};
 
 const LANG_FLAGS: Record<string, string> = {
   en: '\u{1F1EC}\u{1F1E7}', fr: '\u{1F1EB}\u{1F1F7}', es: '\u{1F1EA}\u{1F1F8}', de: '\u{1F1E9}\u{1F1EA}', 'pt-BR': '\u{1F1E7}\u{1F1F7}',
@@ -30,15 +37,38 @@ const LANGUAGES = [
   { code: 'cs', name: 'Cestina' }, { code: 'uk', name: 'Ukrainian' },
 ];
 
-const TOAST_POSITIONS = [
-  { value: 'bottom-right', label: 'Bottom Right' },
-  { value: 'top-center', label: 'Top Center' },
-];
+// ── Alert position preview SVG ───────────────────────────────────────────────
+function AlertPreviewSvg({ position }: { position: 'bottom-right' | 'top-center' }) {
+  return (
+    <svg viewBox="0 0 200 120" className="w-full max-w-xs mx-auto rounded-lg border border-border bg-bg-primary">
+      <rect x="4" y="4" width="192" height="112" rx="6" fill="currentColor" className="text-bg-secondary" stroke="currentColor" strokeWidth="1" />
+      <rect x="4" y="4" width="192" height="16" rx="6" fill="currentColor" className="text-bg-hover" />
+      <rect x="8" y="8" width="40" height="8" rx="3" fill="currentColor" className="text-border" />
+      <rect x="160" y="8" width="30" height="8" rx="3" fill="currentColor" className="text-border" />
+      {[28, 38, 48, 58].map((y) => (
+        <rect key={y} x="12" y={y} width={30 + (y % 20) * 2} height="5" rx="2" fill="currentColor" className="text-border opacity-50" />
+      ))}
+      {position === 'bottom-right' ? (
+        <>
+          <rect x="110" y="82" width="80" height="22" rx="4" fill="currentColor" className="text-accent" opacity="0.9" />
+          <rect x="115" y="87" width="50" height="4" rx="2" fill="white" opacity="0.9" />
+          <rect x="115" y="94" width="35" height="3" rx="2" fill="white" opacity="0.6" />
+        </>
+      ) : (
+        <>
+          <rect x="60" y="24" width="80" height="22" rx="4" fill="currentColor" className="text-accent" opacity="0.9" />
+          <rect x="65" y="29" width="50" height="4" rx="2" fill="white" opacity="0.9" />
+          <rect x="65" y="36" width="35" height="3" rx="2" fill="white" opacity="0.6" />
+        </>
+      )}
+    </svg>
+  );
+}
 
 export function EnrollmentPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, checkSession } = useAuthStore();
+  const { user, checkSession, logout } = useAuthStore();
   const returnTo = searchParams.get('returnTo');
 
   const [step, setStep] = useState<Step>('language');
@@ -48,7 +78,7 @@ export function EnrollmentPage() {
     email: user?.email ?? '',
     preferredTheme: 'modern',
     toastEnabled: true,
-    toastPosition: 'bottom-right',
+    toastPosition: 'bottom-right' as 'bottom-right' | 'top-center',
   });
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState('');
@@ -76,15 +106,15 @@ export function EnrollmentPage() {
 
   const handleNext = async (e?: FormEvent) => {
     e?.preventDefault();
+    setError('');
     if (step === 'language') { setStep('profile'); return; }
     if (step === 'profile') {
       if (!data.email) { setError('Email is required'); return; }
-      setError('');
-      setStep('appearance');
+      setStep('alerts');
       return;
     }
-    if (step === 'appearance') { setStep('notifications'); return; }
-    if (step === 'notifications') { await completeEnrollment(); }
+    if (step === 'alerts') { setStep('appearance'); return; }
+    if (step === 'appearance') { await completeEnrollment(); }
   };
 
   const handleBack = () => {
@@ -92,13 +122,31 @@ export function EnrollmentPage() {
     if (idx > 0) setStep(STEPS[idx - 1]);
   };
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
   return (
     <div className="min-h-screen bg-bg-primary flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-xl">
-        <div className="text-center mb-8">
-          <Shield size={48} className="text-accent mx-auto mb-3" />
-          <h1 className="text-2xl font-bold text-text-primary">Welcome to Obligate</h1>
-          <p className="text-sm text-text-secondary mt-1">Let's set up your profile</p>
+        {/* Header with logout */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Shield size={32} className="text-accent" />
+            <div>
+              <h1 className="text-xl font-bold text-text-primary">Welcome to Obligate</h1>
+              <p className="text-xs text-text-secondary">Let's set up your profile</p>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
+            title="Sign out"
+          >
+            <LogOut size={14} />
+            Sign out
+          </button>
         </div>
 
         {/* Stepper */}
@@ -114,7 +162,7 @@ export function EnrollmentPage() {
                   {idx < currentIdx ? <Check size={14} /> : idx + 1}
                 </div>
                 <span className={`text-xs hidden sm:block ${idx === currentIdx ? 'text-text-primary font-medium' : 'text-text-muted'}`}>
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                  {STEP_LABELS[s]}
                 </span>
               </div>
               {idx < STEPS.length - 1 && (
@@ -129,7 +177,7 @@ export function EnrollmentPage() {
           {step === 'language' && (
             <div>
               <h2 className="text-xl font-semibold text-text-primary mb-2">Language</h2>
-              <p className="text-sm text-text-muted mb-4">Choose your preferred language.</p>
+              <p className="text-sm text-text-muted mb-4">Choose your preferred language for all Obli* applications.</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {LANGUAGES.map(lang => (
                   <button
@@ -173,60 +221,68 @@ export function EnrollmentPage() {
             </div>
           )}
 
-          {/* Appearance step */}
-          {step === 'appearance' && (
+          {/* Alerts step — with SVG previews */}
+          {step === 'alerts' && (
             <div>
-              <h2 className="text-xl font-semibold text-text-primary mb-2">Appearance</h2>
-              <p className="text-sm text-text-muted mb-4">Choose your visual theme.</p>
-              <ThemePicker
-                value={data.preferredTheme}
-                onChange={theme => setData(d => ({ ...d, preferredTheme: theme }))}
-              />
-            </div>
-          )}
+              <h2 className="text-xl font-semibold text-text-primary mb-1">Notifications</h2>
+              <p className="text-sm text-text-muted mb-5">Configure toast notifications across all Obli* applications.</p>
 
-          {/* Notifications step */}
-          {step === 'notifications' && (
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-text-primary mb-2">Notifications</h2>
-              <p className="text-sm text-text-muted mb-4">Configure toast notifications across all apps.</p>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-text-primary">Toast Notifications</p>
-                  <p className="text-xs text-text-muted">Show popup notifications for status changes</p>
+              <label className="flex items-start gap-3 cursor-pointer mb-5">
+                <div className="relative mt-0.5">
+                  <input type="checkbox" className="sr-only peer" checked={data.toastEnabled} onChange={e => setData(d => ({ ...d, toastEnabled: e.target.checked }))} />
+                  <div className="w-9 h-5 rounded-full border-2 border-border peer-checked:border-accent peer-checked:bg-accent bg-bg-hover transition-colors" />
+                  <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4" />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setData(d => ({ ...d, toastEnabled: !d.toastEnabled }))}
-                  className={cn('relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-                    data.toastEnabled ? 'bg-accent' : 'bg-bg-hover')}
-                >
-                  <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
-                    data.toastEnabled ? 'translate-x-6' : 'translate-x-1')} />
-                </button>
-              </div>
-              {data.toastEnabled && (
                 <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-2">Position</label>
-                  <div className="flex flex-wrap gap-2">
-                    {TOAST_POSITIONS.map(p => (
+                  <div className="text-sm font-medium text-text-primary">Enable toast notifications</div>
+                  <div className="text-xs text-text-muted">Show popup alerts when monitors change state, agents report issues, etc.</div>
+                </div>
+              </label>
+
+              {data.toastEnabled && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-text-primary">Toast position</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(['bottom-right', 'top-center'] as const).map(pos => (
                       <button
-                        key={p.value}
+                        key={pos}
                         type="button"
-                        onClick={() => setData(d => ({ ...d, toastPosition: p.value }))}
-                        className={cn(
-                          'px-3 py-1.5 rounded-md border text-sm transition-colors',
-                          data.toastPosition === p.value
-                            ? 'border-accent bg-accent/10 text-accent'
-                            : 'border-border bg-bg-tertiary text-text-secondary hover:bg-bg-hover',
-                        )}
+                        onClick={() => setData(d => ({ ...d, toastPosition: pos }))}
+                        className={`rounded-lg border p-3 text-left transition-colors ${
+                          data.toastPosition === pos ? 'border-accent bg-accent/10' : 'border-border hover:border-accent/50 hover:bg-bg-hover'
+                        }`}
                       >
-                        {p.label}
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${data.toastPosition === pos ? 'border-accent' : 'border-border'}`}>
+                            {data.toastPosition === pos && <div className="h-2 w-2 rounded-full bg-accent" />}
+                          </div>
+                          <span className="text-sm font-medium text-text-primary">
+                            {pos === 'bottom-right' ? 'Bottom Right' : 'Top Center'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-text-muted mb-3">
+                          {pos === 'bottom-right'
+                            ? 'Toasts stack in the bottom-right corner. Less intrusive, ideal for dashboards.'
+                            : 'Toasts appear centered at the top. More visible, good for critical alerts.'}
+                        </p>
+                        <AlertPreviewSvg position={pos} />
                       </button>
                     ))}
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Appearance step — with SVG theme previews */}
+          {step === 'appearance' && (
+            <div>
+              <h2 className="text-xl font-semibold text-text-primary mb-1">Appearance</h2>
+              <p className="text-sm text-text-muted mb-5">Choose your visual theme for all Obli* applications.</p>
+              <ThemePicker
+                value={data.preferredTheme}
+                onChange={theme => setData(d => ({ ...d, preferredTheme: theme }))}
+              />
             </div>
           )}
 

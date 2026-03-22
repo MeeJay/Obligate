@@ -168,8 +168,13 @@ export const permissionGroupService = {
         team_name: string | null;
       }>;
 
+    // No mappings = no access to this app
+    if (mappings.length === 0) {
+      return { role: '', tenants: [], teams: [] };
+    }
+
     // Highest privilege wins for role
-    let role = 'user';
+    let role = 'viewer';
     if (mappings.some(m => m.app_role === 'admin')) role = 'admin';
     else if (mappings.some(m => m.app_role === 'user')) role = 'user';
     else if (mappings.some(m => m.app_role === 'viewer')) role = 'viewer';

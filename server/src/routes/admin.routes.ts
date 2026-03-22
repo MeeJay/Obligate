@@ -61,6 +61,29 @@ adminRoutes.delete('/apps/:id', async (req, res) => {
   }
 });
 
+adminRoutes.get('/apps/:id/dashboard-stats', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const app = await db('connected_apps').where({ id, is_active: true }).first() as {
+      base_url: string; api_key: string;
+    } | undefined;
+    if (!app) { res.json({ success: true, data: null }); return; }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const response = await fetch(`${app.base_url}/api/auth/dashboard-stats`, {
+      headers: { 'Authorization': `Bearer ${app.api_key}` },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!response.ok) { res.json({ success: true, data: null }); return; }
+    const data = await response.json() as { success: boolean; data?: unknown };
+    res.json({ success: true, data: data.data ?? null });
+  } catch {
+    res.json({ success: true, data: null });
+  }
+});
+
 adminRoutes.get('/apps/:id/remote-info', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);

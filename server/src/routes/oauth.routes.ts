@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db';
 import { oauthService } from '../services/oauth.service';
 import { appService } from '../services/app.service';
+import { permissionGroupService } from '../services/permissionGroup.service';
 import { requireAuth, AppError } from '../middleware/auth';
 import { logger } from '../utils/logger';
 
@@ -41,6 +42,15 @@ oauthRoutes.get('/authorize', async (req, res) => {
       if ((row?.enrollment_version ?? 0) < REQUIRED_ENROLLMENT_VERSION) {
         const enrollUrl = `/enroll?returnTo=${encodeURIComponent(req.originalUrl)}`;
         res.redirect(enrollUrl);
+        return;
+      }
+
+      // Check if user has permission group mapping for this app
+      const resolved = await permissionGroupService.resolveForUserAndApp(req.session.userId, app.id);
+      if (!resolved.role) {
+        // User has no permission to access this app — show an error page
+        res.status(403).setHeader('Content-Type', 'text/html');
+        res.end(`<!DOCTYPE html><html><head><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0d1117;color:#8b949e;font-family:-apple-system,BlinkMacSystemFont,sans-serif}.c{text-align:center;max-width:400px;padding:2rem}.h{color:#f85149;font-size:1.25rem;font-weight:600;margin-bottom:.5rem}.p{font-size:.875rem;margin-bottom:1.5rem}a{color:#58a6ff;text-decoration:none}a:hover{text-decoration:underline}</style></head><body><div class="c"><div class="h">Access Denied</div><div class="p">You do not have permission to access this application. Contact your administrator to request access.</div><a href="/">Back to Obligate</a></div></body></html>`);
         return;
       }
 
