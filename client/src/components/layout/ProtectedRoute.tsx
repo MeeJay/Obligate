@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
-  const { user, checkSession } = useAuthStore();
+  const location = useLocation();
+  const { user, requiresEnrollment, checkSession } = useAuthStore();
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
@@ -24,7 +25,13 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) return null; // redirecting to /login
+  if (!user) return null;
+
+  // Redirect to enrollment if needed (skip if already on /enroll)
+  if (requiresEnrollment && location.pathname !== '/enroll') {
+    navigate('/enroll', { replace: true });
+    return null;
+  }
 
   return <>{children}</>;
 }

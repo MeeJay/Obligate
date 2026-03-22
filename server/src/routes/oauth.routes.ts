@@ -1,8 +1,11 @@
 import { Router } from 'express';
+import { db } from '../db';
 import { oauthService } from '../services/oauth.service';
 import { appService } from '../services/app.service';
 import { requireAuth, AppError } from '../middleware/auth';
 import { logger } from '../utils/logger';
+
+const REQUIRED_ENROLLMENT_VERSION = 1;
 
 export const oauthRoutes = Router();
 
@@ -31,8 +34,16 @@ oauthRoutes.get('/authorize', async (req, res) => {
       return;
     }
 
-    // If user is already authenticated, issue code immediately
+    // If user is already authenticated, check enrollment then issue code
     if (req.session?.userId) {
+      // Check if user has completed enrollment — if not, redirect to enroll first
+      const row = await db('users').where({ id: req.session.userId }).select('enrollment_version').first() as { enrollment_version: number } | undefined;
+      if ((row?.enrollment_version ?? 0) < REQUIRED_ENROLLMENT_VERSION) {
+        const enrollUrl = `/enroll?returnTo=${encodeURIComponent(req.originalUrl)}`;
+        res.redirect(enrollUrl);
+        return;
+      }
+
       const code = await oauthService.generateCode(req.session.userId, app.id, redirect_uri);
       const separator = redirect_uri.includes('?') ? '&' : '?';
       const redirectUrl = `${redirect_uri}${separator}code=${code}${state ? `&state=${state}` : ''}`;

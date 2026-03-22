@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { LoginPage } from './pages/LoginPage';
+import { EnrollmentPage } from './pages/EnrollmentPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AppsPage } from './pages/AppsPage';
 import { UsersPage } from './pages/UsersPage';
@@ -25,6 +26,9 @@ export function App() {
       <Routes>
         {/* Public */}
         <Route path="/login" element={<LoginPage />} />
+
+        {/* Protected — enrollment (full-screen, outside AppLayout) */}
+        <Route path="/enroll" element={<ProtectedRoute><EnrollmentPage /></ProtectedRoute>} />
 
         {/* Protected — inside AppLayout */}
         <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>

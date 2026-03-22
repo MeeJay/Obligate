@@ -9,10 +9,13 @@ interface User {
   role: 'admin' | 'user';
   isActive: boolean;
   authSource: string;
+  preferredLanguage: string;
+  enrollmentVersion: number;
 }
 
 interface AuthState {
   user: User | null;
+  requiresEnrollment: boolean;
   checkSession: () => Promise<boolean>;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
@@ -20,16 +23,17 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
+  requiresEnrollment: false,
 
   checkSession: async () => {
     try {
       const { data } = await apiClient.get('/auth/me');
       if (data.success) {
-        set({ user: data.data.user });
+        set({ user: data.data.user, requiresEnrollment: data.data.requiresEnrollment ?? false });
         return true;
       }
     } catch { /* ignore */ }
-    set({ user: null });
+    set({ user: null, requiresEnrollment: false });
     return false;
   },
 
@@ -48,6 +52,6 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     try { await apiClient.post('/auth/logout'); } catch { /* ignore */ }
-    set({ user: null });
+    set({ user: null, requiresEnrollment: false });
   },
 }));

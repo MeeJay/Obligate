@@ -12,6 +12,7 @@ export interface ObligateUser {
   ldapDn: string | null;
   totpEnabled: boolean;
   preferredLanguage: string;
+  enrollmentVersion: number;
   createdAt: string;
   updatedAt: string;
 }
