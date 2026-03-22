@@ -88,6 +88,32 @@ apiRoutes.post('/register', requireAppBearer, async (req: any, res) => {
 });
 
 /**
+ * GET /api/apps/:id/remote-info
+ * Fetch teams + tenants from a connected app (for mapping UI).
+ */
+apiRoutes.get('/:id/remote-info', requireAppBearer, async (req: any, res) => {
+  try {
+    const appId = parseInt(req.params.id, 10);
+    const app = await db('connected_apps').where({ id: appId, is_active: true }).first() as {
+      base_url: string; api_key: string;
+    } | undefined;
+    if (!app) { res.json({ success: true, data: null }); return; }
+
+    // Call the target app's /api/auth/app-info endpoint with OUR api key as Bearer
+    // The app validates this key against its own obligate_config.apiKey
+    const response = await fetch(`${app.base_url}/api/auth/app-info`, {
+      headers: { 'Authorization': `Bearer ${app.api_key}` },
+    });
+    if (!response.ok) { res.json({ success: true, data: null }); return; }
+    const data = await response.json() as { success: boolean; data?: unknown };
+    res.json({ success: true, data: data.data ?? null });
+  } catch (err) {
+    logger.error(err, 'Failed to fetch remote app info');
+    res.json({ success: true, data: null });
+  }
+});
+
+/**
  * GET /api/devices/link?uuid=xxx&target_app=obliguard
  * Resolve a device UUID to a URL on another app.
  */

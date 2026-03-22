@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { appService } from '../services/app.service';
 import { authService } from '../services/auth.service';
 import { permissionGroupService } from '../services/permissionGroup.service';
+import { db } from '../db';
 import { logger } from '../utils/logger';
 
 export const adminRoutes = Router();
@@ -60,6 +61,26 @@ adminRoutes.delete('/apps/:id', async (req, res) => {
   }
 });
 
+adminRoutes.get('/apps/:id/remote-info', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const app = await db('connected_apps').where({ id, is_active: true }).first() as {
+      base_url: string; api_key: string;
+    } | undefined;
+    if (!app) { res.json({ success: true, data: null }); return; }
+
+    const response = await fetch(`${app.base_url}/api/auth/app-info`, {
+      headers: { 'Authorization': `Bearer ${app.api_key}` },
+    });
+    if (!response.ok) { res.json({ success: true, data: null }); return; }
+    const data = await response.json() as { success: boolean; data?: unknown };
+    res.json({ success: true, data: data.data ?? null });
+  } catch (err) {
+    logger.error(err, 'Failed to fetch remote app info');
+    res.json({ success: true, data: null });
+  }
+});
+
 adminRoutes.post('/apps/:id/regenerate-key', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -95,6 +116,43 @@ adminRoutes.post('/users', async (req, res) => {
   } catch (err) {
     logger.error(err, 'Failed to create user');
     res.status(500).json({ success: false, error: 'Failed to create user' });
+  }
+});
+
+adminRoutes.put('/users/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const user = await authService.updateUser(id, req.body);
+    if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+    res.json({ success: true, data: user });
+  } catch (err) {
+    logger.error(err, 'Failed to update user');
+    res.status(500).json({ success: false, error: 'Failed to update user' });
+  }
+});
+
+adminRoutes.put('/users/:id/password', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { password } = req.body as { password?: string };
+    if (!password || password.length < 4) { res.status(400).json({ success: false, error: 'Password too short' }); return; }
+    const ok = await authService.changePassword(id, password);
+    if (!ok) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to change password' });
+  }
+});
+
+adminRoutes.delete('/users/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (id === req.session.userId) { res.status(400).json({ success: false, error: 'Cannot delete yourself' }); return; }
+    const ok = await authService.deleteUser(id);
+    if (!ok) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to delete user' });
   }
 });
 

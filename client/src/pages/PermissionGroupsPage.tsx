@@ -5,6 +5,12 @@ import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import type { PermissionGroup, PermissionGroupAppMapping, ConnectedApp } from '@obligate/shared';
 
+interface RemoteAppInfo {
+  roles: string[];
+  teams: Array<{ id: number; name: string; tenantSlug: string; tenantName: string }>;
+  tenants: Array<{ slug: string; name: string }>;
+}
+
 export function PermissionGroupsPage() {
   const [groups, setGroups] = useState<PermissionGroup[]>([]);
   const [apps, setApps] = useState<ConnectedApp[]>([]);
@@ -12,8 +18,12 @@ export function PermissionGroupsPage() {
   const [mappings, setMappings] = useState<PermissionGroupAppMapping[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
-  const [mappingForm, setMappingForm] = useState({ appId: 0, appRole: 'user', tenantSlug: '', teamName: '' });
   const [saving, setSaving] = useState(false);
+
+  // Mapping form with remote info
+  const [mappingForm, setMappingForm] = useState({ appId: 0, appRole: 'user', tenantSlug: '', teamName: '' });
+  const [remoteInfo, setRemoteInfo] = useState<RemoteAppInfo | null>(null);
+  const [remoteLoading, setRemoteLoading] = useState(false);
 
   const load = async () => {
     const [g, a] = await Promise.all([
@@ -31,7 +41,27 @@ export function PermissionGroupsPage() {
     const { data } = await apiClient.get(`/admin/permission-groups/${id}/mappings`);
     if (data.success) setMappings(data.data);
     setExpanded(id);
-    if (apps.length > 0) setMappingForm(f => ({ ...f, appId: apps[0].id }));
+    setRemoteInfo(null);
+    if (apps.length > 0) {
+      const firstApp = apps[0];
+      setMappingForm({ appId: firstApp.id, appRole: 'user', tenantSlug: '', teamName: '' });
+      fetchRemoteInfo(firstApp.id);
+    }
+  };
+
+  const fetchRemoteInfo = async (appId: number) => {
+    setRemoteLoading(true);
+    setRemoteInfo(null);
+    try {
+      const { data } = await apiClient.get(`/admin/apps/${appId}/remote-info`);
+      if (data.success && data.data) setRemoteInfo(data.data);
+    } catch { /* ignore */ }
+    finally { setRemoteLoading(false); }
+  };
+
+  const onAppChange = (appId: number) => {
+    setMappingForm(f => ({ ...f, appId, tenantSlug: '', teamName: '' }));
+    fetchRemoteInfo(appId);
   };
 
   const handleCreateGroup = async (e: React.FormEvent) => {
@@ -69,6 +99,11 @@ export function PermissionGroupsPage() {
   };
 
   const getAppName = (appId: number) => apps.find(a => a.id === appId)?.name ?? `App #${appId}`;
+
+  // Filter teams by selected tenant
+  const filteredTeams = remoteInfo?.teams.filter(t =>
+    !mappingForm.tenantSlug || t.tenantSlug === mappingForm.tenantSlug
+  ) ?? [];
 
   return (
     <div>
@@ -114,15 +149,16 @@ export function PermissionGroupsPage() {
               <div className="border-t border-border px-5 py-4 bg-bg-primary/50">
                 <p className="text-xs text-text-secondary font-medium mb-3">App Mappings</p>
 
-                {mappings.length > 0 ? (
+                {/* Existing mappings */}
+                {mappings.length > 0 && (
                   <div className="space-y-1.5 mb-4">
                     {mappings.map(m => (
                       <div key={m.id} className="flex items-center justify-between bg-bg-tertiary rounded px-3 py-2 text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="text-text-primary">{getAppName(m.appId)}</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-text-primary font-medium">{getAppName(m.appId)}</span>
                           <span className="text-xs bg-accent/20 text-accent px-1.5 py-0.5 rounded">{m.appRole}</span>
-                          {m.tenantSlug && <span className="text-xs text-text-muted">tenant: {m.tenantSlug}</span>}
-                          {m.teamName && <span className="text-xs text-text-muted">team: {m.teamName}</span>}
+                          {m.tenantSlug && <span className="text-xs text-text-muted bg-bg-hover px-1.5 py-0.5 rounded">tenant: {m.tenantSlug}</span>}
+                          {m.teamName && <span className="text-xs text-text-muted bg-bg-hover px-1.5 py-0.5 rounded">team: {m.teamName}</span>}
                         </div>
                         <button onClick={() => handleDeleteMapping(group.id, m.id)} className="text-text-muted hover:text-status-down">
                           <Trash2 size={14} />
@@ -130,46 +166,75 @@ export function PermissionGroupsPage() {
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-xs text-text-muted mb-4">No mappings yet.</p>
                 )}
 
-                <div className="flex items-end gap-2 flex-wrap">
-                  <div className="space-y-1">
-                    <label className="text-xs text-text-secondary">App</label>
-                    <select
-                      value={mappingForm.appId}
-                      onChange={e => setMappingForm(f => ({ ...f, appId: parseInt(e.target.value) }))}
-                      className="rounded-md border border-border bg-bg-tertiary px-2 py-1.5 text-sm text-text-primary outline-none"
-                    >
-                      {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                    </select>
+                {mappings.length === 0 && <p className="text-xs text-text-muted mb-4">No mappings yet.</p>}
+
+                {/* Add mapping form with dynamic dropdowns */}
+                <div className="bg-bg-tertiary rounded-lg p-3 space-y-3">
+                  <p className="text-xs text-text-secondary font-medium">Add mapping</p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                    {/* App selector */}
+                    <div className="space-y-1">
+                      <label className="text-xs text-text-muted">App</label>
+                      <select value={mappingForm.appId} onChange={e => onAppChange(parseInt(e.target.value))}
+                        className="w-full rounded-md border border-border bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent">
+                        {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Role selector */}
+                    <div className="space-y-1">
+                      <label className="text-xs text-text-muted">Role</label>
+                      <select value={mappingForm.appRole} onChange={e => setMappingForm(f => ({ ...f, appRole: e.target.value }))}
+                        className="w-full rounded-md border border-border bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent">
+                        <option value="admin">admin (global)</option>
+                        <option value="user">user</option>
+                        <option value="viewer">viewer</option>
+                      </select>
+                    </div>
+
+                    {/* Tenant selector (dynamic from remote app) */}
+                    <div className="space-y-1">
+                      <label className="text-xs text-text-muted">Tenant</label>
+                      {remoteLoading ? (
+                        <div className="text-xs text-text-muted py-2">Loading...</div>
+                      ) : (
+                        <select value={mappingForm.tenantSlug} onChange={e => setMappingForm(f => ({ ...f, tenantSlug: e.target.value, teamName: '' }))}
+                          className="w-full rounded-md border border-border bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent">
+                          <option value="">(all tenants)</option>
+                          {remoteInfo?.tenants.map(t => <option key={t.slug} value={t.slug}>{t.name}</option>)}
+                        </select>
+                      )}
+                    </div>
+
+                    {/* Team selector (dynamic from remote app, filtered by tenant) */}
+                    <div className="space-y-1">
+                      <label className="text-xs text-text-muted">Team</label>
+                      {remoteLoading ? (
+                        <div className="text-xs text-text-muted py-2">Loading...</div>
+                      ) : (
+                        <select value={mappingForm.teamName} onChange={e => setMappingForm(f => ({ ...f, teamName: e.target.value }))}
+                          className="w-full rounded-md border border-border bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent">
+                          <option value="">(no team)</option>
+                          {filteredTeams.map(t => (
+                            <option key={`${t.tenantSlug}-${t.name}`} value={t.name}>
+                              {t.name}{mappingForm.tenantSlug ? '' : ` (${t.tenantName})`}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-text-secondary">Role</label>
-                    <select
-                      value={mappingForm.appRole}
-                      onChange={e => setMappingForm(f => ({ ...f, appRole: e.target.value }))}
-                      className="rounded-md border border-border bg-bg-tertiary px-2 py-1.5 text-sm text-text-primary outline-none"
-                    >
-                      <option value="admin">admin</option>
-                      <option value="user">user</option>
-                      <option value="viewer">viewer</option>
-                    </select>
-                  </div>
-                  <Input
-                    placeholder="Tenant slug"
-                    value={mappingForm.tenantSlug}
-                    onChange={e => setMappingForm(f => ({ ...f, tenantSlug: e.target.value }))}
-                    className="!w-32 !py-1.5"
-                  />
-                  <Input
-                    placeholder="Team name"
-                    value={mappingForm.teamName}
-                    onChange={e => setMappingForm(f => ({ ...f, teamName: e.target.value }))}
-                    className="!w-32 !py-1.5"
-                  />
-                  <Button size="sm" onClick={() => handleAddMapping(group.id)}>Add</Button>
+
+                  {!remoteInfo && !remoteLoading && (
+                    <p className="text-xs text-status-down">Could not connect to the app. Check that it is running and the API key is configured.</p>
+                  )}
+
+                  <Button size="sm" onClick={() => handleAddMapping(group.id)} disabled={!mappingForm.appId}>
+                    Add Mapping
+                  </Button>
                 </div>
               </div>
             )}

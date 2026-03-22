@@ -81,3 +81,27 @@ accountRoutes.put('/profile', async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to update profile' });
   }
 });
+
+/**
+ * PUT /api/account/password
+ */
+accountRoutes.put('/password', async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body as { currentPassword?: string; newPassword?: string };
+    if (!newPassword || newPassword.length < 4) {
+      res.status(400).json({ success: false, error: 'New password too short (min 4 chars)' });
+      return;
+    }
+    // Verify current password if user has one
+    const user = await db('users').where({ id: req.session.userId! }).first() as { password_hash: string | null } | undefined;
+    if (user?.password_hash && currentPassword) {
+      const { comparePassword } = await import('../utils/crypto');
+      const valid = await comparePassword(currentPassword, user.password_hash);
+      if (!valid) { res.status(401).json({ success: false, error: 'Current password is incorrect' }); return; }
+    }
+    await authService.changePassword(req.session.userId!, newPassword);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to change password' });
+  }
+});

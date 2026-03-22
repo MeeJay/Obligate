@@ -108,6 +108,34 @@ export const authService = {
     return rowToUser(row);
   },
 
+  async updateUser(id: number, data: {
+    email?: string | null;
+    displayName?: string | null;
+    role?: 'admin' | 'user';
+    isActive?: boolean;
+  }): Promise<ObligateUser | null> {
+    const update: Record<string, unknown> = { updated_at: new Date() };
+    if (data.email !== undefined) update.email = data.email;
+    if (data.displayName !== undefined) update.display_name = data.displayName;
+    if (data.role !== undefined) update.role = data.role;
+    if (data.isActive !== undefined) update.is_active = data.isActive;
+
+    const [row] = await db('users').where({ id }).update(update).returning('*') as UserRow[];
+    if (!row) return null;
+    return rowToUser(row);
+  },
+
+  async changePassword(id: number, newPassword: string): Promise<boolean> {
+    const hash = await hashPassword(newPassword);
+    const count = await db('users').where({ id }).update({ password_hash: hash, updated_at: new Date() });
+    return count > 0;
+  },
+
+  async deleteUser(id: number): Promise<boolean> {
+    const count = await db('users').where({ id }).del();
+    return count > 0;
+  },
+
   async listUsers(): Promise<ObligateUser[]> {
     const rows = await db('users').orderBy('username') as UserRow[];
     return rows.map(rowToUser);
