@@ -13,7 +13,6 @@ interface User {
 
 interface AuthState {
   user: User | null;
-  loading: boolean;
   checkSession: () => Promise<boolean>;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
@@ -21,17 +20,16 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  loading: true,
 
   checkSession: async () => {
     try {
       const { data } = await apiClient.get('/auth/me');
       if (data.success) {
-        set({ user: data.data.user, loading: false });
+        set({ user: data.data.user });
         return true;
       }
     } catch { /* ignore */ }
-    set({ user: null, loading: false });
+    set({ user: null });
     return false;
   },
 
