@@ -1,0 +1,29 @@
+# Use this compose file if you already have PostgreSQL running (e.g. on Unraid).
+# Usage: docker compose -f docker-compose.external-db.yml up -d
+#
+# Required .env variables:
+#   DATABASE_URL=postgres://obligate:<password>@<host>:5432/obligate
+#   SESSION_SECRET=<random-string>
+
+services:
+  server:
+    image: meejay/obligate-server:${OBLIGATE_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3010
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost}
+      DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME:-admin}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD:-admin123}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+
+  client:
+    image: meejay/obligate-client:${OBLIGATE_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    ports:
+      - "${LISTEN_PORT:-3020}:80"

@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Shield } from 'lucide-react';
+import { Button } from '../components/common/Button';
+import { Input } from '../components/common/Input';
+import { useAuthStore } from '../store/authStore';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { login } = useAuthStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -16,84 +21,60 @@ export function LoginPage() {
     setError('');
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ username, password }),
-      });
-      const data = await res.json();
+    const result = await login(username, password);
+    setLoading(false);
 
-      if (!data.success) {
-        setError(data.error || 'Login failed');
-        return;
-      }
+    if (!result.success) {
+      setError(result.error || 'Login failed');
+      return;
+    }
 
-      // If we have a returnTo (OAuth flow), redirect back to the authorize endpoint
-      if (returnTo) {
-        window.location.href = returnTo;
-      } else {
-        navigate('/dashboard');
-      }
-    } catch {
-      setError('Connection error');
-    } finally {
-      setLoading(false);
+    if (returnTo) {
+      window.location.href = returnTo;
+    } else {
+      navigate('/');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-100">
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-bg-primary px-4">
+      <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-indigo-600">Obligate</h1>
-          <p className="text-gray-500 mt-2">Centralized Single Sign-On</p>
+          <Shield size={48} className="text-accent mx-auto mb-3" />
+          <h1 className="text-2xl font-bold text-text-primary">Obligate</h1>
+          <p className="text-sm text-text-secondary mt-1">Centralized Single Sign-On</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Username
-            </label>
-            <input
-              type="text"
+        <div className="bg-bg-secondary border border-border rounded-lg p-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              label="Username"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={e => setUsername(e.target.value)}
               placeholder="admin, DOMAIN\user, or user@domain.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
               autoFocus
               required
             />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
+            <Input
+              label="Password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+              onChange={e => setPassword(e.target.value)}
               required
             />
-          </div>
 
-          {error && (
-            <div className="bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
+            {error && (
+              <div className="bg-status-down-bg border border-status-down/30 rounded-md p-3 text-sm text-status-down">
+                {error}
+              </div>
+            )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors font-medium"
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+            <Button type="submit" loading={loading} className="w-full">
+              Sign In
+            </Button>
+          </form>
+        </div>
       </div>
     </div>
   );
