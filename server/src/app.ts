@@ -57,16 +57,14 @@ export function createApp() {
   // Health check
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-  // API routes
-  app.use('/api', routes);
-
-  // Serve the /authorize endpoint via the OAuth routes (mounted at /api/oauth)
-  // but also at the root for clean URLs
+  // OAuth authorize endpoint at root for clean URLs (MUST be before static serving)
   app.get('/authorize', (req, res) => {
-    // Forward to the OAuth authorize handler
     const qs = new URLSearchParams(req.query as Record<string, string>).toString();
     res.redirect(`/api/oauth/authorize?${qs}`);
   });
+
+  // API routes
+  app.use('/api', routes);
 
   // Serve static client in production
   const clientDist = path.resolve(__dirname, '../../client/dist');

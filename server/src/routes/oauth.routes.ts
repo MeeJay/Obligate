@@ -41,7 +41,7 @@ oauthRoutes.get('/authorize', async (req, res) => {
     }
 
     // Not authenticated — redirect to login page with return params
-    const loginUrl = `/?returnTo=${encodeURIComponent(req.originalUrl)}`;
+    const loginUrl = `/login?returnTo=${encodeURIComponent(req.originalUrl)}`;
     res.redirect(loginUrl);
   } catch (err) {
     logger.error(err, 'OAuth authorize error');
