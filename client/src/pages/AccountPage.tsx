@@ -3,6 +3,7 @@ import { ExternalLink, Key, User, Palette, Bell, Shield } from 'lucide-react';
 import apiClient from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
+import { ThemePicker } from '../components/ThemePicker';
 import { useAuthStore } from '../store/authStore';
 import { cn } from '../utils/cn';
 
@@ -40,16 +41,9 @@ interface AppStatus {
   lastLoginAt: string | null;
 }
 
-const THEMES = [
-  { value: 'modern', label: 'Modern', desc: 'Cool blues with dark grays' },
-  { value: 'neon', label: 'Neon', desc: 'Cyan cyberpunk aesthetic' },
-];
-
 const TOAST_POSITIONS = [
-  { value: 'top-right', label: 'Top Right' },
-  { value: 'top-center', label: 'Top Center' },
   { value: 'bottom-right', label: 'Bottom Right' },
-  { value: 'bottom-center', label: 'Bottom Center' },
+  { value: 'top-center', label: 'Top Center' },
 ];
 
 export function AccountPage() {
@@ -127,23 +121,10 @@ export function AccountPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-2">Theme</label>
-              <div className="flex gap-2">
-                {THEMES.map(t => (
-                  <button
-                    key={t.value}
-                    onClick={() => saveCommon({ preferredTheme: t.value })}
-                    className={cn(
-                      'px-4 py-2 rounded-lg border text-sm transition-colors',
-                      common.preferredTheme === t.value
-                        ? 'border-accent bg-accent/10 text-accent'
-                        : 'border-border bg-bg-tertiary text-text-secondary hover:bg-bg-hover',
-                    )}
-                  >
-                    <div className="font-medium">{t.label}</div>
-                    <div className="text-xs text-text-muted mt-0.5">{t.desc}</div>
-                  </button>
-                ))}
-              </div>
+              <ThemePicker
+                value={common.preferredTheme}
+                onChange={theme => saveCommon({ preferredTheme: theme })}
+              />
             </div>
 
             <div>

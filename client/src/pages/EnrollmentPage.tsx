@@ -5,6 +5,7 @@ import apiClient from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
+import { ThemePicker } from '../components/ThemePicker';
 import { cn } from '../utils/cn';
 
 type Step = 'language' | 'profile' | 'appearance' | 'notifications';
@@ -29,16 +30,9 @@ const LANGUAGES = [
   { code: 'cs', name: 'Cestina' }, { code: 'uk', name: 'Ukrainian' },
 ];
 
-const THEMES = [
-  { value: 'modern', label: 'Modern', desc: 'Cool blues with dark grays' },
-  { value: 'neon', label: 'Neon', desc: 'Cyan cyberpunk aesthetic' },
-];
-
 const TOAST_POSITIONS = [
-  { value: 'top-right', label: 'Top Right' },
-  { value: 'top-center', label: 'Top Center' },
   { value: 'bottom-right', label: 'Bottom Right' },
-  { value: 'bottom-center', label: 'Bottom Center' },
+  { value: 'top-center', label: 'Top Center' },
 ];
 
 export function EnrollmentPage() {
@@ -184,24 +178,10 @@ export function EnrollmentPage() {
             <div>
               <h2 className="text-xl font-semibold text-text-primary mb-2">Appearance</h2>
               <p className="text-sm text-text-muted mb-4">Choose your visual theme.</p>
-              <div className="flex gap-3">
-                {THEMES.map(t => (
-                  <button
-                    key={t.value}
-                    type="button"
-                    onClick={() => setData(d => ({ ...d, preferredTheme: t.value }))}
-                    className={cn(
-                      'flex-1 px-4 py-3 rounded-lg border text-sm transition-colors text-left',
-                      data.preferredTheme === t.value
-                        ? 'border-accent bg-accent/10 text-accent'
-                        : 'border-border bg-bg-tertiary text-text-secondary hover:bg-bg-hover',
-                    )}
-                  >
-                    <div className="font-medium">{t.label}</div>
-                    <div className="text-xs text-text-muted mt-0.5">{t.desc}</div>
-                  </button>
-                ))}
-              </div>
+              <ThemePicker
+                value={data.preferredTheme}
+                onChange={theme => setData(d => ({ ...d, preferredTheme: theme }))}
+              />
             </div>
           )}
 
