@@ -169,6 +169,42 @@ apiRoutes.get('/user-preferences/:userId', requireAppBearer, async (req: any, re
 });
 
 /**
+ * GET /api/devices/links?uuid=xxx
+ * Returns ALL linked apps for a device UUID (excluding the calling app).
+ */
+apiRoutes.get('/links', requireAppBearer, async (req: any, res) => {
+  try {
+    const { uuid } = req.query as { uuid?: string };
+    if (!uuid) {
+      res.status(400).json({ success: false, error: 'Missing uuid' });
+      return;
+    }
+
+    const rows = await db('device_links as dl')
+      .join('connected_apps as ca', 'ca.id', 'dl.app_id')
+      .where({ 'dl.device_uuid': uuid, 'ca.is_active': true })
+      .whereNot('dl.app_id', req.appId)
+      .select('ca.app_type', 'ca.name', 'ca.base_url', 'ca.icon', 'ca.color', 'dl.app_path') as Array<{
+        app_type: string; name: string; base_url: string; icon: string | null; color: string | null; app_path: string;
+      }>;
+
+    res.json({
+      success: true,
+      data: rows.map(r => ({
+        appType: r.app_type,
+        name: r.name,
+        url: `${r.base_url}${r.app_path}`,
+        icon: r.icon,
+        color: r.color,
+      })),
+    });
+  } catch (err) {
+    logger.error(err, 'Failed to resolve device links');
+    res.status(500).json({ success: false, error: 'Failed to resolve links' });
+  }
+});
+
+/**
  * GET /api/devices/link?uuid=xxx&target_app=obliguard
  * Resolve a device UUID to a URL on another app.
  */
