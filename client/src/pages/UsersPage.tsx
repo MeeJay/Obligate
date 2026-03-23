@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Plus, Shield, User, Pencil, Trash2, X, Check, Key, ShieldCheck } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Shield, User, Pencil, Trash2, X, Check, Key, ShieldCheck, Search } from 'lucide-react';
 import apiClient from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -9,10 +9,15 @@ import { cn } from '../utils/cn';
 export function UsersPage() {
   const [users, setUsers] = useState<ObligateUser[]>([]);
   const [groups, setGroups] = useState<PermissionGroup[]>([]);
+  const [userGroupMap, setUserGroupMap] = useState<Record<number, PermissionGroup[]>>({});
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ username: '', email: '', displayName: '', password: '', role: 'user' as 'admin' | 'user' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Search & filter
+  const [search, setSearch] = useState('');
+  const [filterGroupId, setFilterGroupId] = useState<number | ''>('');
 
   // Edit state
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -31,11 +36,31 @@ export function UsersPage() {
       apiClient.get('/admin/users'),
       apiClient.get('/admin/permission-groups'),
     ]);
-    if (u.data.success) setUsers(u.data.data);
+    if (u.data.success) {
+      setUsers(u.data.data);
+      if (u.data.userGroups) setUserGroupMap(u.data.userGroups);
+    }
     if (g.data.success) setGroups(g.data.data);
   };
 
   useEffect(() => { load(); }, []);
+
+  // Filtered users
+  const filteredUsers = useMemo(() => {
+    let list = users;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(u =>
+        u.username.toLowerCase().includes(q) ||
+        (u.displayName?.toLowerCase().includes(q)) ||
+        (u.email?.toLowerCase().includes(q))
+      );
+    }
+    if (filterGroupId !== '') {
+      list = list.filter(u => userGroupMap[u.id]?.some(g => g.id === filterGroupId));
+    }
+    return list;
+  }, [users, search, filterGroupId, userGroupMap]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +122,7 @@ export function UsersPage() {
     }
     const { data } = await apiClient.get(`/admin/users/${groupUserId}/groups`);
     if (data.success) setUserGroups(data.data);
+    load();
   };
 
   return (
@@ -106,6 +132,33 @@ export function UsersPage() {
         <Button size="sm" onClick={() => setShowForm(true)}>
           <Plus size={16} className="mr-1.5" /> Add User
         </Button>
+      </div>
+
+      {/* Search & filter bar */}
+      <div className="flex flex-wrap gap-3 mb-5">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <input
+            type="text"
+            placeholder="Search users..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 rounded-md border border-border bg-bg-tertiary text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent placeholder:text-text-muted"
+          />
+        </div>
+        <select
+          value={filterGroupId}
+          onChange={e => setFilterGroupId(e.target.value ? parseInt(e.target.value, 10) : '')}
+          className="rounded-md border border-border bg-bg-tertiary px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent"
+        >
+          <option value="">All groups</option>
+          {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+        </select>
+        {(search || filterGroupId !== '') && (
+          <span className="self-center text-xs text-text-muted">
+            {filteredUsers.length} / {users.length} users
+          </span>
+        )}
       </div>
 
       {/* Create form */}
@@ -181,59 +234,78 @@ export function UsersPage() {
 
       {/* Users list */}
       <div className="space-y-2">
-        {users.map(u => (
-          <div key={u.id} className="bg-bg-secondary border border-border rounded-lg px-5 py-4">
-            {editingId === u.id ? (
-              /* Edit mode */
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <Input label="Display Name" value={editForm.displayName} onChange={e => setEditForm(f => ({ ...f, displayName: e.target.value }))} />
-                  <Input label="Email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
-                  <div className="space-y-1">
-                    <label className="block text-sm font-medium text-text-secondary">Role</label>
-                    <select value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value as 'admin' | 'user' }))}
-                      className="w-full rounded-md border border-border bg-bg-tertiary px-3 py-2 text-sm text-text-primary outline-none">
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={saveEdit}><Check size={14} className="mr-1" />Save</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
-                </div>
-              </div>
-            ) : (
-              /* View mode */
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {u.role === 'admin' ? <Shield size={18} className="text-accent" /> : <User size={18} className="text-text-muted" />}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-text-primary font-medium">{u.displayName || u.username}</span>
-                      {u.displayName && <span className="text-xs text-text-muted">@{u.username}</span>}
-                      {u.role === 'admin' && <span className="text-xs bg-accent/20 text-accent px-1.5 py-0.5 rounded">admin</span>}
+        {filteredUsers.map(u => {
+          const assignedGroups = userGroupMap[u.id] ?? [];
+          return (
+            <div key={u.id} className="bg-bg-secondary border border-border rounded-lg px-5 py-4">
+              {editingId === u.id ? (
+                /* Edit mode */
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <Input label="Display Name" value={editForm.displayName} onChange={e => setEditForm(f => ({ ...f, displayName: e.target.value }))} />
+                    <Input label="Email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
+                    <div className="space-y-1">
+                      <label className="block text-sm font-medium text-text-secondary">Role</label>
+                      <select value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value as 'admin' | 'user' }))}
+                        className="w-full rounded-md border border-border bg-bg-tertiary px-3 py-2 text-sm text-text-primary outline-none">
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
                     </div>
-                    <p className="text-xs text-text-muted mt-0.5">
-                      {u.authSource === 'ldap' ? 'LDAP' : 'Local'}
-                      {u.email && <span className="ml-2">{u.email}</span>}
-                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={saveEdit}><Check size={14} className="mr-1" />Save</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <button onClick={() => toggleActive(u)}
-                    className={cn('text-xs px-2 py-1 rounded', u.isActive ? 'text-status-up bg-status-up-bg' : 'text-status-down bg-status-down-bg')}>
-                    {u.isActive ? 'Active' : 'Disabled'}
-                  </button>
-                  <Button size="sm" variant="ghost" onClick={() => openGroups(u.id)} title="Permission groups"><ShieldCheck size={14} /></Button>
-                  <Button size="sm" variant="ghost" onClick={() => setPwUserId(u.id)} title="Change password"><Key size={14} /></Button>
-                  <Button size="sm" variant="ghost" onClick={() => startEdit(u)} title="Edit"><Pencil size={14} /></Button>
-                  <Button size="sm" variant="ghost" onClick={() => deleteUser(u.id)} title="Delete"><Trash2 size={14} className="text-status-down" /></Button>
+              ) : (
+                /* View mode */
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {u.role === 'admin' ? <Shield size={18} className="text-accent shrink-0" /> : <User size={18} className="text-text-muted shrink-0" />}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-text-primary font-medium">{u.displayName || u.username}</span>
+                        {u.displayName && <span className="text-xs text-text-muted">@{u.username}</span>}
+                        {u.role === 'admin' && <span className="text-xs bg-accent/20 text-accent px-1.5 py-0.5 rounded">admin</span>}
+                      </div>
+                      <p className="text-xs text-text-muted mt-0.5">
+                        {u.authSource === 'ldap' ? 'LDAP' : 'Local'}
+                        {u.email && <span className="ml-2">{u.email}</span>}
+                      </p>
+                      {assignedGroups.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {assignedGroups.map(g => (
+                            <span
+                              key={g.id}
+                              className="inline-flex items-center gap-1 text-[11px] bg-bg-tertiary text-text-secondary border border-border px-1.5 py-0.5 rounded"
+                            >
+                              <ShieldCheck size={10} className="text-text-muted" />
+                              {g.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button onClick={() => toggleActive(u)}
+                      className={cn('text-xs px-2 py-1 rounded', u.isActive ? 'text-status-up bg-status-up-bg' : 'text-status-down bg-status-down-bg')}>
+                      {u.isActive ? 'Active' : 'Disabled'}
+                    </button>
+                    <Button size="sm" variant="ghost" onClick={() => openGroups(u.id)} title="Permission groups"><ShieldCheck size={14} /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => setPwUserId(u.id)} title="Change password"><Key size={14} /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => startEdit(u)} title="Edit"><Pencil size={14} /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => deleteUser(u.id)} title="Delete"><Trash2 size={14} className="text-status-down" /></Button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
+        {filteredUsers.length === 0 && users.length > 0 && (
+          <p className="text-center text-text-muted py-12 text-sm">No users match your search.</p>
+        )}
         {users.length === 0 && <p className="text-center text-text-muted py-12 text-sm">No users yet.</p>}
       </div>
     </div>

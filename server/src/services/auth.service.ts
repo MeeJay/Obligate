@@ -17,6 +17,7 @@ interface UserRow {
   totp_enabled: boolean;
   totp_secret: string | null;
   preferred_language: string;
+  preferred_theme: string;
   enrollment_version: number;
   created_at: Date;
   updated_at: Date;
@@ -35,6 +36,7 @@ function rowToUser(row: UserRow): ObligateUser {
     ldapDn: row.ldap_dn,
     totpEnabled: row.totp_enabled,
     preferredLanguage: row.preferred_language,
+    preferredTheme: row.preferred_theme ?? 'modern',
     enrollmentVersion: row.enrollment_version ?? 0,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),

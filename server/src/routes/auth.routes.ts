@@ -25,9 +25,20 @@ authRoutes.post('/login', authLimiter, async (req, res) => {
       return;
     }
 
-    // TODO: 2FA check here
+    // 2FA check — if TOTP is enabled, don't complete session yet
+    if (user.totpEnabled) {
+      req.session.pendingMfaUserId = user.id;
+      res.json({
+        success: true,
+        data: {
+          requires2fa: true,
+          methods: { totp: true },
+        },
+      });
+      return;
+    }
 
-    // Establish session
+    // No MFA — establish session immediately
     req.session.userId = user.id;
     req.session.username = user.username;
     req.session.role = user.role;

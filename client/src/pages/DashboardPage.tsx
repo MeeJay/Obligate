@@ -109,7 +109,7 @@ export function DashboardPage() {
           return (
             <a
               key={app.appId}
-              href={app.baseUrl}
+              href={`${app.baseUrl}/auth/sso-redirect`}
               target="_blank"
               rel="noopener noreferrer"
               className="group bg-bg-secondary border border-border rounded-xl p-5 hover:border-border-light transition-all hover:shadow-lg cursor-pointer"

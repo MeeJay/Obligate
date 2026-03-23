@@ -7,6 +7,7 @@ import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { ThemePicker } from '../components/ThemePicker';
 import { cn } from '../utils/cn';
+import { applyTheme } from '../utils/theme';
 
 type Step = 'language' | 'profile' | 'alerts' | 'appearance';
 const STEPS: Step[] = ['language', 'profile', 'alerts', 'appearance'];
@@ -281,7 +282,7 @@ export function EnrollmentPage() {
               <p className="text-sm text-text-muted mb-5">Choose your visual theme for all Obli* applications.</p>
               <ThemePicker
                 value={data.preferredTheme}
-                onChange={theme => setData(d => ({ ...d, preferredTheme: theme }))}
+                onChange={theme => { setData(d => ({ ...d, preferredTheme: theme })); applyTheme(theme as 'modern' | 'neon'); }}
               />
             </div>
           )}

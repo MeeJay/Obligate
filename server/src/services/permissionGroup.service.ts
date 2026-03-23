@@ -151,6 +151,18 @@ export const permissionGroupService = {
     return rows.map(rowToGroup);
   },
 
+  async getAllUserGroupAssignments(): Promise<Record<number, PermissionGroup[]>> {
+    const rows = await db('user_permission_groups as upg')
+      .join('permission_groups as pg', 'pg.id', 'upg.group_id')
+      .select('upg.user_id', 'pg.*') as Array<GroupRow & { user_id: number }>;
+    const result: Record<number, PermissionGroup[]> = {};
+    for (const row of rows) {
+      if (!result[row.user_id]) result[row.user_id] = [];
+      result[row.user_id].push(rowToGroup(row));
+    }
+    return result;
+  },
+
   // ── Resolution: user + app → effective role/tenants/teams ────
 
   async resolveForUserAndApp(userId: number, appId: number): Promise<{

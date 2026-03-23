@@ -123,8 +123,11 @@ adminRoutes.post('/apps/:id/regenerate-key', async (req, res) => {
 
 adminRoutes.get('/users', async (_req, res) => {
   try {
-    const users = await authService.listUsers();
-    res.json({ success: true, data: users });
+    const [users, userGroups] = await Promise.all([
+      authService.listUsers(),
+      permissionGroupService.getAllUserGroupAssignments(),
+    ]);
+    res.json({ success: true, data: users, userGroups });
   } catch (err) {
     logger.error(err, 'Failed to list users');
     res.status(500).json({ success: false, error: 'Failed to list users' });

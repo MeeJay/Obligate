@@ -6,6 +6,7 @@ import { Input } from '../components/common/Input';
 import { ThemePicker } from '../components/ThemePicker';
 import { useAuthStore } from '../store/authStore';
 import { cn } from '../utils/cn';
+import { applyTheme } from '../utils/theme';
 
 interface CommonPreferences {
   preferredTheme: string;
@@ -46,6 +47,33 @@ const TOAST_POSITIONS = [
   { value: 'top-center', label: 'Top Center' },
 ];
 
+function AlertPreviewSvg({ position }: { position: 'bottom-right' | 'top-center' }) {
+  return (
+    <svg viewBox="0 0 200 120" className="w-full max-w-xs mx-auto rounded-lg border border-border bg-bg-primary">
+      <rect x="4" y="4" width="192" height="112" rx="6" fill="currentColor" className="text-bg-secondary" stroke="currentColor" strokeWidth="1" />
+      <rect x="4" y="4" width="192" height="16" rx="6" fill="currentColor" className="text-bg-hover" />
+      <rect x="8" y="8" width="40" height="8" rx="3" fill="currentColor" className="text-border" />
+      <rect x="160" y="8" width="30" height="8" rx="3" fill="currentColor" className="text-border" />
+      {[28, 38, 48, 58].map((y) => (
+        <rect key={y} x="12" y={y} width={30 + (y % 20) * 2} height="5" rx="2" fill="currentColor" className="text-border opacity-50" />
+      ))}
+      {position === 'bottom-right' ? (
+        <>
+          <rect x="110" y="82" width="80" height="22" rx="4" fill="currentColor" className="text-accent" opacity="0.9" />
+          <rect x="115" y="87" width="50" height="4" rx="2" fill="white" opacity="0.9" />
+          <rect x="115" y="94" width="35" height="3" rx="2" fill="white" opacity="0.6" />
+        </>
+      ) : (
+        <>
+          <rect x="60" y="24" width="80" height="22" rx="4" fill="currentColor" className="text-accent" opacity="0.9" />
+          <rect x="65" y="29" width="50" height="4" rx="2" fill="white" opacity="0.9" />
+          <rect x="65" y="36" width="35" height="3" rx="2" fill="white" opacity="0.6" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 export function AccountPage() {
   const { user } = useAuthStore();
   const [apps, setApps] = useState<AppStatus[]>([]);
@@ -66,7 +94,10 @@ export function AccountPage() {
   const saveCommon = async (patch: Partial<CommonPreferences>) => {
     try {
       const { data } = await apiClient.put('/account/preferences/common', patch);
-      if (data.success) setCommon(data.data);
+      if (data.success) {
+        setCommon(data.data);
+        if (patch.preferredTheme) applyTheme(patch.preferredTheme as 'modern' | 'neon');
+      }
     } catch { /* ignore */ }
   };
 
@@ -109,6 +140,9 @@ export function AccountPage() {
 
       {/* ── Password ───────────────────────────────────────────── */}
       <ChangePasswordSection />
+
+      {/* ── Two-Factor Authentication ──────────────────────────── */}
+      <TotpSection />
 
       {/* ── Appearance ─────────────────────────────────────────── */}
       {common && (
@@ -185,19 +219,31 @@ export function AccountPage() {
             {common.toastEnabled && (
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-2">Position</label>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {TOAST_POSITIONS.map(p => (
                     <button
                       key={p.value}
                       onClick={() => saveCommon({ toastPosition: p.value })}
                       className={cn(
-                        'px-3 py-1.5 rounded-md border text-sm transition-colors',
+                        'rounded-lg border p-3 text-left transition-colors',
                         common.toastPosition === p.value
-                          ? 'border-accent bg-accent/10 text-accent'
-                          : 'border-border bg-bg-tertiary text-text-secondary hover:bg-bg-hover',
+                          ? 'border-accent bg-accent/10'
+                          : 'border-border hover:border-accent/50 hover:bg-bg-hover',
                       )}
                     >
-                      {p.label}
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={cn('h-4 w-4 rounded-full border-2 flex items-center justify-center',
+                          common.toastPosition === p.value ? 'border-accent' : 'border-border')}>
+                          {common.toastPosition === p.value && <div className="h-2 w-2 rounded-full bg-accent" />}
+                        </div>
+                        <span className="text-sm font-medium text-text-primary">{p.label}</span>
+                      </div>
+                      <p className="text-xs text-text-muted mb-3">
+                        {p.value === 'bottom-right'
+                          ? 'Toasts stack in the bottom-right corner. Less intrusive, ideal for dashboards.'
+                          : 'Toasts appear centered at the top. More visible, good for critical alerts.'}
+                      </p>
+                      <AlertPreviewSvg position={p.value as 'bottom-right' | 'top-center'} />
                     </button>
                   ))}
                 </div>
@@ -356,6 +402,109 @@ function ChangePasswordSection() {
         {success && <div className="bg-status-up-bg border border-status-up/30 rounded-md p-3 text-sm text-status-up">Password changed successfully</div>}
         <Button type="submit" loading={saving} size="sm">Update Password</Button>
       </form>
+    </section>
+  );
+}
+
+function TotpSection() {
+  const [totpEnabled, setTotpEnabled] = useState(false);
+  const [setupData, setSetupData] = useState<{ secret: string; qrDataUrl: string } | null>(null);
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    apiClient.get('/profile/2fa/status').then(({ data }) => {
+      if (data.success) {
+        setTotpEnabled(data.data.totpEnabled);
+        setChecked(true);
+      }
+    }).catch(() => setChecked(true));
+  }, []);
+
+  const startSetup = async () => {
+    setError('');
+    try {
+      const { data } = await apiClient.post('/profile/2fa/totp/setup');
+      if (data.success) setSetupData(data.data);
+    } catch { setError('Failed to start setup'); }
+  };
+
+  const enableTotp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const { data } = await apiClient.post('/profile/2fa/totp/enable', { code });
+      if (data.success) {
+        setTotpEnabled(true);
+        setSetupData(null);
+        setCode('');
+      } else {
+        setError(data.error || 'Invalid code');
+      }
+    } catch {
+      setError('Invalid code');
+    } finally { setLoading(false); }
+  };
+
+  const disableTotp = async () => {
+    if (!confirm('Disable two-factor authentication? This will make your account less secure.')) return;
+    try {
+      await apiClient.delete('/profile/2fa/totp');
+      setTotpEnabled(false);
+    } catch { setError('Failed to disable'); }
+  };
+
+  if (!checked) return null;
+
+  return (
+    <section className="bg-bg-secondary border border-border rounded-lg p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Shield size={18} className="text-text-muted" />
+        <h2 className="text-lg font-medium text-text-primary">Two-Factor Authentication</h2>
+        {totpEnabled && (
+          <span className="text-xs bg-status-up-bg text-status-up px-2 py-0.5 rounded border border-status-up/30">Enabled</span>
+        )}
+      </div>
+
+      {totpEnabled ? (
+        <div>
+          <p className="text-sm text-text-muted mb-3">TOTP two-factor authentication is active. All Obli* apps are protected.</p>
+          <Button size="sm" variant="danger" onClick={disableTotp}>Disable 2FA</Button>
+        </div>
+      ) : setupData ? (
+        <form onSubmit={enableTotp} className="space-y-4">
+          <p className="text-sm text-text-muted">Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)</p>
+          <div className="flex justify-center">
+            <img src={setupData.qrDataUrl} alt="TOTP QR Code" className="rounded-lg" width={200} height={200} />
+          </div>
+          <div>
+            <p className="text-xs text-text-muted mb-1">Or enter this secret manually:</p>
+            <code className="block bg-bg-tertiary px-3 py-2 rounded text-sm font-mono text-text-primary break-all select-all">{setupData.secret}</code>
+          </div>
+          <Input
+            label="Verification Code"
+            type="text"
+            inputMode="numeric"
+            value={code}
+            onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="000000"
+            required
+          />
+          {error && <div className="bg-status-down-bg border border-status-down/30 rounded-md p-3 text-sm text-status-down">{error}</div>}
+          <div className="flex gap-2">
+            <Button type="submit" loading={loading} size="sm">Enable 2FA</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setSetupData(null)}>Cancel</Button>
+          </div>
+        </form>
+      ) : (
+        <div>
+          <p className="text-sm text-text-muted mb-3">Add an extra layer of security. Once enabled, you'll need your authenticator app to sign in to all Obli* applications.</p>
+          <Button size="sm" onClick={startSetup}>Setup 2FA</Button>
+        </div>
+      )}
     </section>
   );
 }

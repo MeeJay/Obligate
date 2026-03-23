@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import apiClient from '../api/client';
+import { applyTheme } from '../utils/theme';
 
 interface User {
   id: number;
@@ -10,6 +11,7 @@ interface User {
   isActive: boolean;
   authSource: string;
   preferredLanguage: string;
+  preferredTheme: string;
   enrollmentVersion: number;
 }
 
@@ -17,7 +19,7 @@ interface AuthState {
   user: User | null;
   requiresEnrollment: boolean;
   checkSession: () => Promise<boolean>;
-  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (username: string, password: string) => Promise<{ success: boolean; error?: string; requires2fa?: boolean }>;
   logout: () => Promise<void>;
 }
 
@@ -29,7 +31,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { data } = await apiClient.get('/auth/me');
       if (data.success) {
-        set({ user: data.data.user, requiresEnrollment: data.data.requiresEnrollment ?? false });
+        const user = data.data.user;
+        set({ user, requiresEnrollment: data.data.requiresEnrollment ?? false });
+        if (user.preferredTheme) applyTheme(user.preferredTheme as 'modern' | 'neon');
         return true;
       }
     } catch { /* ignore */ }
@@ -41,6 +45,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { data } = await apiClient.post('/auth/login', { username, password });
       if (data.success) {
+        if (data.data.requires2fa) {
+          return { success: true, requires2fa: true };
+        }
         set({ user: data.data.user });
         return { success: true };
       }

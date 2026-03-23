@@ -144,6 +144,31 @@ apiRoutes.get('/:id/remote-info', requireAppBearer, async (req: any, res) => {
 });
 
 /**
+ * GET /api/apps/user-preferences/:userId
+ * Returns common + app-specific preferences for a given Obligate user.
+ * Called by connected apps to sync preferences in real-time.
+ */
+apiRoutes.get('/user-preferences/:userId', requireAppBearer, async (req: any, res) => {
+  try {
+    const userId = parseInt(req.params.userId, 10);
+    if (isNaN(userId)) {
+      res.status(400).json({ success: false, error: 'Invalid userId' });
+      return;
+    }
+
+    const [common, appPrefs] = await Promise.all([
+      preferencesService.getCommonPreferences(userId),
+      preferencesService.getAppPreferences(userId, req.appId),
+    ]);
+
+    res.json({ success: true, data: { ...common, appSpecific: appPrefs } });
+  } catch (err) {
+    logger.error(err, 'Failed to fetch user preferences');
+    res.status(500).json({ success: false, error: 'Failed to fetch preferences' });
+  }
+});
+
+/**
  * GET /api/devices/link?uuid=xxx&target_app=obliguard
  * Resolve a device UUID to a URL on another app.
  */
