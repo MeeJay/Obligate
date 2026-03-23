@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Key, User, Palette, Bell, Shield } from 'lucide-react';
+import { ExternalLink, Key, User, Palette, Bell, Shield, EyeOff } from 'lucide-react';
 import apiClient from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -14,6 +14,7 @@ interface CommonPreferences {
   toastPosition: string;
   profilePhotoUrl: string | null;
   preferredLanguage: string;
+  anonymousMode: boolean;
 }
 
 interface PreferenceSchema {
@@ -249,6 +250,31 @@ export function AccountPage() {
                 </div>
               </div>
             )}
+          </div>
+        </section>
+      )}
+
+      {/* ── Privacy ────────────────────────────────────────────── */}
+      {common && (
+        <section className="bg-bg-secondary border border-border rounded-lg p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <EyeOff size={18} className="text-text-muted" />
+            <h2 className="text-lg font-medium text-text-primary">Privacy</h2>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-text-primary">Anonymous Mode</p>
+              <p className="text-xs text-text-muted">Hide sensitive data (hostnames, IPs, usernames) across all Obli* applications</p>
+            </div>
+            <button
+              onClick={() => saveCommon({ anonymousMode: !common.anonymousMode })}
+              className={cn('relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                common.anonymousMode ? 'bg-accent' : 'bg-bg-hover')}
+            >
+              <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                common.anonymousMode ? 'translate-x-6' : 'translate-x-1')} />
+            </button>
           </div>
         </section>
       )}

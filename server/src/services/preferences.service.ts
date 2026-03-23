@@ -15,6 +15,7 @@ export interface CommonPreferences {
   toastPosition: string;
   profilePhotoUrl: string | null;
   preferredLanguage: string;
+  anonymousMode: boolean;
 }
 
 export const preferencesService = {
@@ -23,10 +24,10 @@ export const preferencesService = {
   async getCommonPreferences(userId: number): Promise<CommonPreferences> {
     const row = await db('users')
       .where({ id: userId })
-      .select('preferred_theme', 'toast_enabled', 'toast_position', 'profile_photo_url', 'preferred_language')
+      .select('preferred_theme', 'toast_enabled', 'toast_position', 'profile_photo_url', 'preferred_language', 'anonymous_mode')
       .first() as {
         preferred_theme: string; toast_enabled: boolean; toast_position: string;
-        profile_photo_url: string | null; preferred_language: string;
+        profile_photo_url: string | null; preferred_language: string; anonymous_mode: boolean;
       } | undefined;
 
     return {
@@ -35,6 +36,7 @@ export const preferencesService = {
       toastPosition: row?.toast_position ?? 'bottom-right',
       profilePhotoUrl: row?.profile_photo_url ?? null,
       preferredLanguage: row?.preferred_language ?? 'en',
+      anonymousMode: row?.anonymous_mode ?? false,
     };
   },
 
@@ -45,6 +47,7 @@ export const preferencesService = {
     if (data.toastPosition !== undefined) update.toast_position = data.toastPosition;
     if (data.profilePhotoUrl !== undefined) update.profile_photo_url = data.profilePhotoUrl;
     if (data.preferredLanguage !== undefined) update.preferred_language = data.preferredLanguage;
+    if (data.anonymousMode !== undefined) update.anonymous_mode = data.anonymousMode;
     await db('users').where({ id: userId }).update(update);
   },
 
