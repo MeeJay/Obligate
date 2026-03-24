@@ -21,8 +21,9 @@ export function Header({ onToggleSidebar }: HeaderProps) {
         <button onClick={onToggleSidebar} className="lg:hidden rounded-md p-1.5 text-text-secondary hover:bg-bg-hover hover:text-text-primary">
           <Menu size={20} />
         </button>
-        <div className="flex items-center gap-2">
-          <img src="/logo.svg" alt="Obligate" style={{ height: '40px', width: 'auto' }} />
+        {/* Logo visible only on mobile (sidebar has it on desktop) */}
+        <div className="flex items-center gap-2 lg:hidden">
+          <img src="/logo.svg" alt="Obligate" style={{ height: '36px', width: 'auto' }} />
         </div>
       </div>
 

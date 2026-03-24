@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { LayoutDashboard, AppWindow, Users, ShieldCheck, FolderTree, UserCircle, Settings } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuthStore } from '../../store/authStore';
@@ -39,11 +39,18 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       )}
 
       <aside className={cn(
-        'fixed top-14 left-0 bottom-0 z-50 w-56 bg-bg-secondary border-r border-border',
+        'fixed top-0 left-0 bottom-0 z-50 w-56 bg-bg-secondary border-r border-border',
         'flex flex-col transition-transform duration-200',
         'lg:static lg:translate-x-0 lg:z-auto',
         open ? 'translate-x-0' : '-translate-x-full',
       )}>
+        {/* Logo header */}
+        <div className="h-14 flex-shrink-0 flex items-center px-4 border-b border-border">
+          <Link to="/" className="flex items-center" onClick={onClose}>
+            <img src="/logo.svg" alt="Obligate" style={{ height: '36px', width: 'auto' }} />
+          </Link>
+        </div>
+
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
           {navItems.map(item => {
             if (item.admin && !isAdmin) return null;

@@ -29,6 +29,8 @@ const APP_COLORS: Record<string, string> = {
   obliance: '#8b5cf6',
 };
 
+const APP_ORDER: string[] = ['obliview', 'obliguard', 'oblimap', 'obliance'];
+
 export function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -42,6 +44,11 @@ export function DashboardPage() {
     apiClient.get('/account/apps').then(({ data }) => {
       if (data.success) {
         const enabledApps = (data.data as AppInfo[]).filter(a => a.enabled);
+        enabledApps.sort((a, b) => {
+          const ai = APP_ORDER.indexOf(a.appType);
+          const bi = APP_ORDER.indexOf(b.appType);
+          return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        });
         setApps(enabledApps);
 
         // Fetch dashboard stats from each app via Obligate proxy
