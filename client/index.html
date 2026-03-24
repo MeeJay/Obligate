@@ -9,6 +9,12 @@
       // Apply saved theme immediately to prevent flash of wrong theme (FOUC)
       try{var t=localStorage.getItem('og-theme');if(t==='neon')document.documentElement.dataset.theme='neon';}catch(e){}
     </script>
+    <style>
+      /* Hide app until Tailwind CSS fully loads — prevents broken layout flash on external navigation */
+      body { background: #0d1117; margin: 0; }
+      [data-theme="neon"] body { background: #07080a; }
+      #root { opacity: 0; transition: opacity .15s; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

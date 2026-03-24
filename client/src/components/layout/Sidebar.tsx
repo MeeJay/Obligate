@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, AppWindow, Users, ShieldCheck, FolderTree, UserCircle } from 'lucide-react';
+import { LayoutDashboard, AppWindow, Users, ShieldCheck, FolderTree, UserCircle, Settings } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuthStore } from '../../store/authStore';
 
@@ -14,6 +14,7 @@ const navItems = [
   { path: '/users',         icon: Users,           label: 'Users',              admin: true },
   { path: '/groups',        icon: ShieldCheck,     label: 'Permission Groups',  admin: true },
   { path: '/directories',   icon: FolderTree,      label: 'Directories',        admin: true },
+  { path: '/settings',      icon: Settings,        label: 'Settings',           admin: true },
 ];
 
 const bottomItems = [

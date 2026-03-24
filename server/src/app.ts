@@ -77,9 +77,13 @@ export function createApp() {
   // Serve static client in production
   const clientDist = path.resolve(__dirname, '../../client/dist');
   if (existsSync(clientDist)) {
-    app.use(express.static(clientDist));
+    // Assets have content-hash filenames → cache aggressively
+    app.use(express.static(clientDist, { maxAge: '7d', immutable: true }));
+    // index.html → never cache (so new builds are picked up immediately)
+    const indexPath = path.join(clientDist, 'index.html');
     app.get('*', (_req, res) => {
-      res.sendFile(path.join(clientDist, 'index.html'));
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.sendFile(indexPath);
     });
   }
 

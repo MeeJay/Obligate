@@ -7,6 +7,8 @@ import { AppsPage } from './pages/AppsPage';
 import { UsersPage } from './pages/UsersPage';
 import { PermissionGroupsPage } from './pages/PermissionGroupsPage';
 import { AccountPage } from './pages/AccountPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { Setup2faPage } from './pages/Setup2faPage';
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 
@@ -27,8 +29,9 @@ export function App() {
         {/* Public */}
         <Route path="/login" element={<LoginPage />} />
 
-        {/* Protected — enrollment (full-screen, outside AppLayout) */}
+        {/* Protected — enrollment & forced 2FA (full-screen, outside AppLayout) */}
         <Route path="/enroll" element={<ProtectedRoute><EnrollmentPage /></ProtectedRoute>} />
+        <Route path="/setup-2fa" element={<ProtectedRoute><Setup2faPage /></ProtectedRoute>} />
 
         {/* Protected — inside AppLayout */}
         <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
@@ -37,6 +40,7 @@ export function App() {
           <Route path="/users" element={<UsersPage />} />
           <Route path="/groups" element={<PermissionGroupsPage />} />
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

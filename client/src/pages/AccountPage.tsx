@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ExternalLink, Key, User, Palette, Bell, Shield, EyeOff } from 'lucide-react';
+import { ExternalLink, Key, User, Palette, Bell, Shield, EyeOff, Camera } from 'lucide-react';
 import apiClient from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -119,22 +119,25 @@ export function AccountPage() {
           <User size={18} className="text-text-muted" />
           <h2 className="text-lg font-medium text-text-primary">Profile</h2>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="text-text-muted">Username</span>
-            <p className="text-text-primary font-medium">{user?.username}</p>
-          </div>
-          <div>
-            <span className="text-text-muted">Display Name</span>
-            <p className="text-text-primary font-medium">{user?.displayName || '—'}</p>
-          </div>
-          <div>
-            <span className="text-text-muted">Email</span>
-            <p className="text-text-primary font-medium">{user?.email || '—'}</p>
-          </div>
-          <div>
-            <span className="text-text-muted">Auth Source</span>
-            <p className="text-text-primary font-medium">{user?.authSource === 'ldap' ? 'LDAP' : 'Local'}</p>
+        <div className="flex items-start gap-5">
+          <ProfilePhotoUpload currentUrl={common?.profilePhotoUrl ?? null} onSaved={url => saveCommon({ profilePhotoUrl: url })} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm flex-1">
+            <div>
+              <span className="text-text-muted">Username</span>
+              <p className="text-text-primary font-medium">{user?.username}</p>
+            </div>
+            <div>
+              <span className="text-text-muted">Display Name</span>
+              <p className="text-text-primary font-medium">{user?.displayName || '—'}</p>
+            </div>
+            <div>
+              <span className="text-text-muted">Email</span>
+              <p className="text-text-primary font-medium">{user?.email || '—'}</p>
+            </div>
+            <div>
+              <span className="text-text-muted">Auth Source</span>
+              <p className="text-text-primary font-medium">{user?.authSource === 'ldap' ? 'LDAP' : 'Local'}</p>
+            </div>
           </div>
         </div>
       </section>
@@ -532,5 +535,57 @@ function TotpSection() {
         </div>
       )}
     </section>
+  );
+}
+
+function ProfilePhotoUpload({ currentUrl, onSaved }: { currentUrl: string | null; onSaved: (url: string | null) => void }) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 512 * 1024) { alert('Image too large (max 512 KB)'); return; }
+
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        onSaved(dataUrl);
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="relative shrink-0">
+      {currentUrl ? (
+        <img src={currentUrl} alt="Profile" className="h-16 w-16 rounded-full object-cover border border-border" />
+      ) : (
+        <div className="h-16 w-16 rounded-full bg-bg-tertiary border border-border flex items-center justify-center">
+          <User size={24} className="text-text-muted" />
+        </div>
+      )}
+      <label className={cn(
+        'absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-accent flex items-center justify-center cursor-pointer',
+        'hover:bg-accent-hover transition-colors border-2 border-bg-secondary',
+        uploading && 'opacity-50 pointer-events-none',
+      )}>
+        <Camera size={12} className="text-white" />
+        <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      </label>
+      {currentUrl && (
+        <button
+          onClick={() => onSaved(null)}
+          className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-status-down flex items-center justify-center text-white text-xs border-2 border-bg-secondary hover:bg-status-down/80"
+          title="Remove photo"
+        >
+          ×
+        </button>
+      )}
+    </div>
   );
 }

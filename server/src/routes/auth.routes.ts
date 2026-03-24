@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db';
 import { authService } from '../services/auth.service';
 import { preferencesService } from '../services/preferences.service';
+import { configService } from '../services/config.service';
 import { authLimiter } from '../middleware/rateLimiter';
 import { requireAuth } from '../middleware/auth';
 
@@ -64,14 +65,20 @@ authRoutes.get('/me', requireAuth, async (req, res) => {
       res.status(401).json({ success: false, error: 'User not found' });
       return;
     }
-    // Include enrollment check
-    const row = await db('users').where({ id: user.id }).select('enrollment_version').first() as { enrollment_version: number } | undefined;
+    // Include enrollment check + force 2FA check
+    const row = await db('users').where({ id: user.id }).select('enrollment_version', 'totp_enabled').first() as
+      { enrollment_version: number; totp_enabled: boolean } | undefined;
     const enrollmentVersion = row?.enrollment_version ?? 0;
+    const cfg = await configService.getAll();
+    const smtpConfigured = !!(cfg.smtpHost && cfg.smtpFrom);
+    const requires2faSetup = cfg.force2fa && !row?.totp_enabled;
     res.json({
       success: true,
       data: {
         user: { ...user, enrollmentVersion },
         requiresEnrollment: enrollmentVersion < REQUIRED_ENROLLMENT_VERSION,
+        requires2faSetup,
+        smtpConfigured,
       },
     });
   } catch (err) {

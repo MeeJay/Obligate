@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db';
 import { authService } from '../services/auth.service';
 import { preferencesService } from '../services/preferences.service';
+import { configService } from '../services/config.service';
 import { logger } from '../utils/logger';
 
 export const accountRoutes = Router();
@@ -103,8 +104,9 @@ accountRoutes.put('/profile', async (req, res) => {
 accountRoutes.put('/password', async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body as { currentPassword?: string; newPassword?: string };
-    if (!newPassword || newPassword.length < 4) {
-      res.status(400).json({ success: false, error: 'New password too short (min 4 chars)' });
+    const cfg = await configService.getAll();
+    if (!newPassword || newPassword.length < cfg.minPasswordLength) {
+      res.status(400).json({ success: false, error: `Password too short (min ${cfg.minPasswordLength} chars)` });
       return;
     }
     // Verify current password if user has one

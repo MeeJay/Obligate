@@ -18,6 +18,8 @@ interface User {
 interface AuthState {
   user: User | null;
   requiresEnrollment: boolean;
+  requires2faSetup: boolean;
+  smtpConfigured: boolean;
   checkSession: () => Promise<boolean>;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string; requires2fa?: boolean }>;
   logout: () => Promise<void>;
@@ -26,18 +28,25 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   requiresEnrollment: false,
+  requires2faSetup: false,
+  smtpConfigured: false,
 
   checkSession: async () => {
     try {
       const { data } = await apiClient.get('/auth/me');
       if (data.success) {
         const user = data.data.user;
-        set({ user, requiresEnrollment: data.data.requiresEnrollment ?? false });
+        set({
+          user,
+          requiresEnrollment: data.data.requiresEnrollment ?? false,
+          requires2faSetup: data.data.requires2faSetup ?? false,
+          smtpConfigured: data.data.smtpConfigured ?? false,
+        });
         if (user.preferredTheme) applyTheme(user.preferredTheme as 'modern' | 'neon');
         return true;
       }
     } catch { /* ignore */ }
-    set({ user: null, requiresEnrollment: false });
+    set({ user: null, requiresEnrollment: false, requires2faSetup: false, smtpConfigured: false });
     return false;
   },
 
@@ -48,7 +57,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         if (data.data.requires2fa) {
           return { success: true, requires2fa: true };
         }
-        set({ user: data.data.user });
+        // Fetch full session (includes requiresEnrollment + theme) instead of using login response directly
+        const { checkSession } = useAuthStore.getState();
+        await checkSession();
         return { success: true };
       }
       return { success: false, error: data.error || 'Login failed' };

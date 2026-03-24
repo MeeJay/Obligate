@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { appService } from '../services/app.service';
 import { authService } from '../services/auth.service';
 import { permissionGroupService } from '../services/permissionGroup.service';
+import { configService } from '../services/config.service';
 import { db } from '../db';
 import { logger } from '../utils/logger';
 
@@ -161,7 +162,8 @@ adminRoutes.put('/users/:id/password', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const { password } = req.body as { password?: string };
-    if (!password || password.length < 4) { res.status(400).json({ success: false, error: 'Password too short' }); return; }
+    const cfg = await configService.getAll();
+    if (!password || password.length < cfg.minPasswordLength) { res.status(400).json({ success: false, error: `Password too short (min ${cfg.minPasswordLength} chars)` }); return; }
     const ok = await authService.changePassword(id, password);
     if (!ok) { res.status(404).json({ success: false, error: 'User not found' }); return; }
     res.json({ success: true });
@@ -302,5 +304,31 @@ adminRoutes.delete('/users/:uid/groups/:gid', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to remove group' });
+  }
+});
+
+// ── App Settings ─────────────────────────────────────────────────────────────
+
+adminRoutes.get('/settings', async (_req, res) => {
+  try {
+    const config = await configService.getAll();
+    // Never expose SMTP password to the client — just indicate if set
+    res.json({ success: true, data: { ...config, smtpPass: config.smtpPass ? '••••••••' : '' } });
+  } catch (err) {
+    logger.error(err, 'Failed to get settings');
+    res.status(500).json({ success: false, error: 'Failed to get settings' });
+  }
+});
+
+adminRoutes.put('/settings', async (req, res) => {
+  try {
+    const patch = req.body as Record<string, string>;
+    // Don't overwrite password with the masked placeholder
+    if (patch.smtpPass === '••••••••') delete patch.smtpPass;
+    const config = await configService.update(patch);
+    res.json({ success: true, data: { ...config, smtpPass: config.smtpPass ? '••••••••' : '' } });
+  } catch (err) {
+    logger.error(err, 'Failed to update settings');
+    res.status(500).json({ success: false, error: 'Failed to update settings' });
   }
 });

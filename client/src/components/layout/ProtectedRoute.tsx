@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, requiresEnrollment, checkSession } = useAuthStore();
+  const { user, requiresEnrollment, requires2faSetup, checkSession } = useAuthStore();
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
@@ -30,6 +30,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // Redirect to enrollment if needed (skip if already on /enroll)
   if (requiresEnrollment && location.pathname !== '/enroll') {
     navigate('/enroll', { replace: true });
+    return null;
+  }
+
+  // Redirect to 2FA setup if forced by admin (skip if on /setup-2fa or /enroll)
+  if (requires2faSetup && location.pathname !== '/setup-2fa' && location.pathname !== '/enroll') {
+    navigate('/setup-2fa', { replace: true });
     return null;
   }
 

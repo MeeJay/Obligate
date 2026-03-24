@@ -59,6 +59,10 @@
   body {
     @apply bg-bg-primary text-text-primary antialiased;
   }
+  /* Reveal app — overrides the opacity:0 set in index.html to prevent FOUC */
+  #root {
+    opacity: 1 !important;
+  }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { @apply bg-bg-primary; }
   ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
