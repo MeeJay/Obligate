@@ -22,7 +22,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
           <Menu size={20} />
         </button>
         <div className="flex items-center gap-2">
-          <img src="/logo.svg" alt="Obligate" className="h-10 w-10" />
+          <img src="/logo.svg" alt="Obligate" style={{ height: '40px', width: 'auto' }} />
         </div>
       </div>
 

@@ -75,7 +75,7 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-bg-primary px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src="/logo.svg" alt="Obligate" className="mx-auto h-24 w-24 mb-3" />
+          <img src="/logo.svg" alt="Obligate" className="mx-auto mb-3" style={{ height: '72px', width: 'auto' }} />
         </div>
 
         <div className="bg-bg-secondary border border-border rounded-lg p-6">
