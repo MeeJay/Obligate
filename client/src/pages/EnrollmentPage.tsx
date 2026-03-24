@@ -134,11 +134,7 @@ export function EnrollmentPage() {
         {/* Header with logout */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="Obligate" className="h-10 w-10" />
-            <div>
-              <h1 className="text-xl font-bold text-text-primary">Welcome to Obligate</h1>
-              <p className="text-xs text-text-secondary">Let's set up your profile</p>
-            </div>
+            <img src="/logo.svg" alt="Obligate" className="h-14 w-14" />
           </div>
           <button
             onClick={handleLogout}

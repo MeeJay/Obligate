@@ -75,9 +75,7 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-bg-primary px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src="/logo.svg" alt="Obligate" className="mx-auto h-16 w-16 mb-3" />
-          <h1 className="text-2xl font-bold text-text-primary">Obligate</h1>
-          <p className="text-sm text-text-secondary mt-1">Centralized Single Sign-On</p>
+          <img src="/logo.svg" alt="Obligate" className="mx-auto h-24 w-24 mb-3" />
         </div>
 
         <div className="bg-bg-secondary border border-border rounded-lg p-6">
