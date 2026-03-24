@@ -17,6 +17,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     }
   }, [user, checked, checkSession, navigate]);
 
+  // Redirect to enrollment if needed (must be in useEffect, not during render)
+  useEffect(() => {
+    if (!user) return;
+    if (requiresEnrollment && location.pathname !== '/enroll') {
+      navigate('/enroll', { replace: true });
+    } else if (requires2faSetup && location.pathname !== '/setup-2fa' && location.pathname !== '/enroll') {
+      navigate('/setup-2fa', { replace: true });
+    }
+  }, [user, requiresEnrollment, requires2faSetup, location.pathname, navigate]);
+
   if (!user && !checked) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg-primary">
@@ -27,16 +37,20 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) return null;
 
-  // Redirect to enrollment if needed (skip if already on /enroll)
+  // While redirect is pending, show loading to avoid flash
   if (requiresEnrollment && location.pathname !== '/enroll') {
-    navigate('/enroll', { replace: true });
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg-primary">
+        <div className="text-text-secondary text-sm">Loading...</div>
+      </div>
+    );
   }
-
-  // Redirect to 2FA setup if forced by admin (skip if on /setup-2fa or /enroll)
   if (requires2faSetup && location.pathname !== '/setup-2fa' && location.pathname !== '/enroll') {
-    navigate('/setup-2fa', { replace: true });
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg-primary">
+        <div className="text-text-secondary text-sm">Loading...</div>
+      </div>
+    );
   }
 
   return <>{children}</>;

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Shield, LogOut } from 'lucide-react';
 import apiClient from '../api/client';
 import { useAuthStore } from '../store/authStore';
@@ -8,6 +9,7 @@ import { Input } from '../components/common/Input';
 
 export function Setup2faPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { logout, checkSession } = useAuthStore();
   const [setupData, setSetupData] = useState<{ secret: string; qrDataUrl: string } | null>(null);
   const [code, setCode] = useState('');
@@ -21,8 +23,8 @@ export function Setup2faPage() {
     try {
       const { data } = await apiClient.post('/profile/2fa/totp/setup');
       if (data.success) setSetupData(data.data);
-      else setError('Failed to start setup');
-    } catch { setError('Failed to start setup'); }
+      else setError(t('setup2fa.setupFailed'));
+    } catch { setError(t('setup2fa.setupFailed')); }
     finally { setStarting(false); }
   };
 
@@ -36,10 +38,10 @@ export function Setup2faPage() {
         await checkSession();
         navigate('/', { replace: true });
       } else {
-        setError(data.error || 'Invalid code');
+        setError(data.error || t('setup2fa.invalidCode'));
       }
     } catch {
-      setError('Invalid code');
+      setError(t('setup2fa.invalidCode'));
     } finally { setLoading(false); }
   };
 
@@ -50,21 +52,21 @@ export function Setup2faPage() {
 
   return (
     <div className="min-h-screen bg-bg-primary flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-lg">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Shield size={32} className="text-accent" />
+            <Shield size={32} className="text-accent flex-shrink-0" />
             <div>
-              <h1 className="text-xl font-bold text-text-primary">Two-Factor Authentication Required</h1>
-              <p className="text-xs text-text-secondary">Your administrator requires all users to enable 2FA</p>
+              <h1 className="text-xl font-bold text-text-primary">{t('setup2fa.title')}</h1>
+              <p className="text-xs text-text-secondary">{t('setup2fa.subtitle')}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
+            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors whitespace-nowrap"
           >
             <LogOut size={14} />
-            Sign out
+            {t('setup2fa.signOut')}
           </button>
         </div>
 
@@ -72,22 +74,22 @@ export function Setup2faPage() {
           {!setupData ? (
             <div className="text-center">
               <p className="text-sm text-text-muted mb-4">
-                Set up an authenticator app (Google Authenticator, Authy, etc.) to secure your account and access all Obli* applications.
+                {t('setup2fa.description')}
               </p>
-              <Button onClick={startSetup} loading={starting}>Start Setup</Button>
+              <Button onClick={startSetup} loading={starting}>{t('setup2fa.startSetup')}</Button>
             </div>
           ) : (
             <form onSubmit={enableTotp} className="space-y-4">
-              <p className="text-sm text-text-muted">Scan this QR code with your authenticator app:</p>
+              <p className="text-sm text-text-muted">{t('setup2fa.scanQr')}</p>
               <div className="flex justify-center">
                 <img src={setupData.qrDataUrl} alt="TOTP QR Code" className="rounded-lg" width={200} height={200} />
               </div>
               <div>
-                <p className="text-xs text-text-muted mb-1">Or enter this secret manually:</p>
+                <p className="text-xs text-text-muted mb-1">{t('setup2fa.manualSecret')}</p>
                 <code className="block bg-bg-tertiary px-3 py-2 rounded text-sm font-mono text-text-primary break-all select-all">{setupData.secret}</code>
               </div>
               <Input
-                label="Verification Code"
+                label={t('setup2fa.verificationCode')}
                 type="text"
                 inputMode="numeric"
                 value={code}
@@ -96,7 +98,7 @@ export function Setup2faPage() {
                 required
               />
               {error && <div className="bg-status-down-bg border border-status-down/30 rounded-md p-3 text-sm text-status-down">{error}</div>}
-              <Button type="submit" loading={loading} className="w-full">Enable 2FA</Button>
+              <Button type="submit" loading={loading} className="w-full">{t('setup2fa.enable2fa')}</Button>
             </form>
           )}
         </div>

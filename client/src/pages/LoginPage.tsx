@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { useAuthStore } from '../store/authStore';
@@ -9,6 +10,7 @@ type Step = 'credentials' | '2fa';
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const { login, checkSession } = useAuthStore();
   const [username, setUsername] = useState('');
@@ -39,7 +41,7 @@ export function LoginPage() {
     setLoading(false);
 
     if (!result.success) {
-      setError(result.error || 'Login failed');
+      setError(result.error || t('login.loginFailed'));
       return;
     }
 
@@ -62,10 +64,10 @@ export function LoginPage() {
         await checkSession();
         goToApp();
       } else {
-        setError(data.error || 'Invalid code');
+        setError(data.error || t('login.invalidCode'));
       }
     } catch {
-      setError('Invalid code. Please try again.');
+      setError(t('login.invalidCode'));
     } finally {
       setMfaLoading(false);
     }
@@ -82,15 +84,15 @@ export function LoginPage() {
           {step === 'credentials' ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <Input
-                label="Username"
+                label={t('login.username')}
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                placeholder="admin, DOMAIN\user, or user@domain.com"
+                placeholder={t('login.usernamePlaceholder')}
                 autoFocus
                 required
               />
               <Input
-                label="Password"
+                label={t('login.password')}
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
@@ -102,17 +104,17 @@ export function LoginPage() {
                 </div>
               )}
               <Button type="submit" loading={loading} className="w-full">
-                Sign In
+                {t('login.signIn')}
               </Button>
             </form>
           ) : (
             <form onSubmit={handleMfaSubmit} className="space-y-4">
               <div>
-                <p className="text-sm font-medium text-text-primary mb-1">Two-Factor Authentication</p>
-                <p className="text-xs text-text-muted">Enter the 6-digit code from your authenticator app.</p>
+                <p className="text-sm font-medium text-text-primary mb-1">{t('login.twoFactor')}</p>
+                <p className="text-xs text-text-muted">{t('login.twoFactorDescription')}</p>
               </div>
               <Input
-                label="Authentication Code"
+                label={t('login.authCode')}
                 type="text"
                 inputMode="numeric"
                 value={mfaCode}
@@ -127,14 +129,14 @@ export function LoginPage() {
                 </div>
               )}
               <Button type="submit" loading={mfaLoading} className="w-full">
-                Verify
+                {t('login.verify')}
               </Button>
               <button
                 type="button"
                 onClick={() => { setStep('credentials'); setError(''); }}
                 className="w-full text-center text-xs text-text-muted hover:text-text-primary"
               >
-                Back to login
+                {t('login.backToLogin')}
               </button>
             </form>
           )}
