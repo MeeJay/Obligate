@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Check, Shield, LogOut } from 'lucide-react';
+import { Check, LogOut } from 'lucide-react';
 import apiClient from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { Button } from '../components/common/Button';
@@ -134,7 +134,7 @@ export function EnrollmentPage() {
         {/* Header with logout */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Shield size={32} className="text-accent" />
+            <img src="/logo.svg" alt="Obligate" className="h-10 w-10" />
             <div>
               <h1 className="text-xl font-bold text-text-primary">Welcome to Obligate</h1>
               <p className="text-xs text-text-secondary">Let's set up your profile</p>

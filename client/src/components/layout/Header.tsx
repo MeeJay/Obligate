@@ -1,4 +1,4 @@
-import { LogOut, Menu, Shield } from 'lucide-react';
+import { LogOut, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 
@@ -22,7 +22,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
           <Menu size={20} />
         </button>
         <div className="flex items-center gap-2">
-          <Shield size={22} className="text-accent" />
+          <img src="/logo.svg" alt="Obligate" className="h-8 w-8" />
           <span className="font-semibold text-text-primary hidden sm:block">Obligate</span>
         </div>
       </div>

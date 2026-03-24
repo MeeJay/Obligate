@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Shield } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { useAuthStore } from '../store/authStore';
@@ -76,7 +75,7 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-bg-primary px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <Shield size={48} className="text-accent mx-auto mb-3" />
+          <img src="/logo.svg" alt="Obligate" className="mx-auto h-16 w-16 mb-3" />
           <h1 className="text-2xl font-bold text-text-primary">Obligate</h1>
           <p className="text-sm text-text-secondary mt-1">Centralized Single Sign-On</p>
         </div>
