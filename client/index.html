@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Obligate</title>
     <link rel="icon" href="data:,">
+    <script>
+      // Apply saved theme immediately to prevent flash of wrong theme (FOUC)
+      try{var t=localStorage.getItem('og-theme');if(t==='neon')document.documentElement.dataset.theme='neon';}catch(e){}
+    </script>
   </head>
   <body>
     <div id="root"></div>
