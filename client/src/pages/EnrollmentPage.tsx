@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Check, LogOut } from 'lucide-react';
 import apiClient from '../api/client';
 import { useAuthStore } from '../store/authStore';
@@ -11,13 +12,6 @@ import { applyTheme } from '../utils/theme';
 
 type Step = 'language' | 'profile' | 'alerts' | 'appearance';
 const STEPS: Step[] = ['language', 'profile', 'alerts', 'appearance'];
-
-const STEP_LABELS: Record<Step, string> = {
-  language: 'Language',
-  profile: 'Profile',
-  alerts: 'Notifications',
-  appearance: 'Appearance',
-};
 
 const LANG_FLAGS: Record<string, string> = {
   en: '\u{1F1EC}\u{1F1E7}', fr: '\u{1F1EB}\u{1F1F7}', es: '\u{1F1EA}\u{1F1F8}', de: '\u{1F1E9}\u{1F1EA}', 'pt-BR': '\u{1F1E7}\u{1F1F7}',
@@ -67,10 +61,18 @@ function AlertPreviewSvg({ position }: { position: 'bottom-right' | 'top-center'
 }
 
 export function EnrollmentPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, checkSession, logout } = useAuthStore();
   const returnTo = searchParams.get('returnTo');
+
+  const STEP_LABELS: Record<Step, string> = {
+    language: t('enrollment.language'),
+    profile: t('enrollment.profile'),
+    alerts: t('enrollment.notifications'),
+    appearance: t('enrollment.appearance'),
+  };
 
   const [step, setStep] = useState<Step>('language');
   const [data, setData] = useState({
@@ -139,10 +141,10 @@ export function EnrollmentPage() {
           <button
             onClick={handleLogout}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-            title="Sign out"
+            title={t('enrollment.signOut')}
           >
             <LogOut size={14} />
-            Sign out
+            {t('enrollment.signOut')}
           </button>
         </div>
 
@@ -173,8 +175,8 @@ export function EnrollmentPage() {
           {/* Language step */}
           {step === 'language' && (
             <div>
-              <h2 className="text-xl font-semibold text-text-primary mb-2">Language</h2>
-              <p className="text-sm text-text-muted mb-4">Choose your preferred language for all Obli* applications.</p>
+              <h2 className="text-xl font-semibold text-text-primary mb-2">{t('enrollment.language')}</h2>
+              <p className="text-sm text-text-muted mb-4">{t('enrollment.selectLanguage')}</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {LANGUAGES.map(lang => (
                   <button
@@ -199,20 +201,20 @@ export function EnrollmentPage() {
           {/* Profile step */}
           {step === 'profile' && (
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-text-primary mb-2">Profile</h2>
-              <p className="text-sm text-text-muted mb-4">Tell us about yourself.</p>
+              <h2 className="text-xl font-semibold text-text-primary mb-2">{t('enrollment.profile')}</h2>
+              <p className="text-sm text-text-muted mb-4">{t('enrollment.profileHelp')}</p>
               <Input
-                label="Display Name"
+                label={t('enrollment.displayName')}
                 value={data.displayName}
                 onChange={e => setData(d => ({ ...d, displayName: e.target.value }))}
-                placeholder="John Smith"
+                placeholder={t('enrollment.displayNamePlaceholder')}
               />
               <Input
-                label="Email"
+                label={t('enrollment.email')}
                 type="email"
                 value={data.email}
                 onChange={e => setData(d => ({ ...d, email: e.target.value }))}
-                placeholder="john@example.com"
+                placeholder={t('enrollment.emailPlaceholder')}
                 required
               />
             </div>
@@ -221,8 +223,8 @@ export function EnrollmentPage() {
           {/* Alerts step — with SVG previews */}
           {step === 'alerts' && (
             <div>
-              <h2 className="text-xl font-semibold text-text-primary mb-1">Notifications</h2>
-              <p className="text-sm text-text-muted mb-5">Configure toast notifications across all Obli* applications.</p>
+              <h2 className="text-xl font-semibold text-text-primary mb-1">{t('enrollment.notifications')}</h2>
+              <p className="text-sm text-text-muted mb-5">{t('enrollment.notificationsHelp')}</p>
 
               <label className="flex items-start gap-3 cursor-pointer mb-5">
                 <div className="relative mt-0.5">
@@ -231,14 +233,14 @@ export function EnrollmentPage() {
                   <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4" />
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-text-primary">Enable toast notifications</div>
-                  <div className="text-xs text-text-muted">Show popup alerts when monitors change state, agents report issues, etc.</div>
+                  <div className="text-sm font-medium text-text-primary">{t('enrollment.enableToast')}</div>
+                  <div className="text-xs text-text-muted">{t('enrollment.toastHelp')}</div>
                 </div>
               </label>
 
               {data.toastEnabled && (
                 <div className="space-y-3">
-                  <p className="text-sm font-medium text-text-primary">Toast position</p>
+                  <p className="text-sm font-medium text-text-primary">{t('enrollment.toastPosition')}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {(['bottom-right', 'top-center'] as const).map(pos => (
                       <button
@@ -254,13 +256,13 @@ export function EnrollmentPage() {
                             {data.toastPosition === pos && <div className="h-2 w-2 rounded-full bg-accent" />}
                           </div>
                           <span className="text-sm font-medium text-text-primary">
-                            {pos === 'bottom-right' ? 'Bottom Right' : 'Top Center'}
+                            {pos === 'bottom-right' ? t('enrollment.bottomRight') : t('enrollment.topCenter')}
                           </span>
                         </div>
                         <p className="text-xs text-text-muted mb-3">
                           {pos === 'bottom-right'
-                            ? 'Toasts stack in the bottom-right corner. Less intrusive, ideal for dashboards.'
-                            : 'Toasts appear centered at the top. More visible, good for critical alerts.'}
+                            ? t('enrollment.bottomRightHelp')
+                            : t('enrollment.topCenterHelp')}
                         </p>
                         <AlertPreviewSvg position={pos} />
                       </button>
@@ -274,8 +276,8 @@ export function EnrollmentPage() {
           {/* Appearance step — with SVG theme previews */}
           {step === 'appearance' && (
             <div>
-              <h2 className="text-xl font-semibold text-text-primary mb-1">Appearance</h2>
-              <p className="text-sm text-text-muted mb-5">Choose your visual theme for all Obli* applications.</p>
+              <h2 className="text-xl font-semibold text-text-primary mb-1">{t('enrollment.appearance')}</h2>
+              <p className="text-sm text-text-muted mb-5">{t('enrollment.appearanceHelp')}</p>
               <ThemePicker
                 value={data.preferredTheme}
                 onChange={theme => { setData(d => ({ ...d, preferredTheme: theme })); applyTheme(theme as 'modern' | 'neon'); }}
@@ -289,16 +291,16 @@ export function EnrollmentPage() {
 
           <div className="flex items-center justify-between pt-2">
             {currentIdx > 0 ? (
-              <Button type="button" variant="ghost" onClick={handleBack}>Back</Button>
+              <Button type="button" variant="ghost" onClick={handleBack}>{t('enrollment.previous')}</Button>
             ) : <div />}
             <Button type="submit" loading={completing}>
-              {isLastStep ? 'Complete' : 'Next'}
+              {isLastStep ? t('enrollment.complete') : t('enrollment.next')}
             </Button>
           </div>
         </form>
 
         <p className="text-center text-xs text-text-muted mt-4">
-          Step {currentIdx + 1} of {STEPS.length}
+          {t('enrollment.step', { current: currentIdx + 1, total: STEPS.length })}
         </p>
       </div>
     </div>

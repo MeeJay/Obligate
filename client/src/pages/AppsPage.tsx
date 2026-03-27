@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, RotateCw, Trash2, Copy, Check } from 'lucide-react';
 import apiClient from '../api/client';
 import { Button } from '../components/common/Button';
@@ -14,6 +15,7 @@ const APP_COLORS: Record<AppType, string> = {
 };
 
 export function AppsPage() {
+  const { t } = useTranslation();
   const [apps, setApps] = useState<ConnectedApp[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ appType: 'obliview' as AppType, name: '', baseUrl: '' });
@@ -67,46 +69,46 @@ export function AppsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-text-primary">Connected Apps</h1>
+        <h1 className="text-2xl font-semibold text-text-primary">{t('apps.title')}</h1>
         <Button size="sm" onClick={() => setShowForm(true)}>
-          <Plus size={16} className="mr-1.5" /> Add App
+          <Plus size={16} className="mr-1.5" /> {t('apps.addApp')}
         </Button>
       </div>
 
       {/* New API Key banner */}
       {newApiKey && (
         <div className="bg-status-up-bg border border-status-up/30 rounded-lg p-4 mb-6">
-          <p className="text-sm text-status-up font-medium mb-2">API Key (shown once — copy it now)</p>
+          <p className="text-sm text-status-up font-medium mb-2">{t('apps.apiKeyShown')}</p>
           <div className="flex items-center gap-2">
             <code className="flex-1 bg-bg-tertiary px-3 py-2 rounded text-sm font-mono text-text-primary break-all">{newApiKey}</code>
             <Button size="sm" variant="secondary" onClick={copyKey}>
               {copied ? <Check size={14} /> : <Copy size={14} />}
             </Button>
           </div>
-          <Button size="sm" variant="ghost" className="mt-2" onClick={() => setNewApiKey(null)}>Dismiss</Button>
+          <Button size="sm" variant="ghost" className="mt-2" onClick={() => setNewApiKey(null)}>{t('common.dismiss')}</Button>
         </div>
       )}
 
       {/* Create form */}
       {showForm && (
         <div className="bg-bg-secondary border border-border rounded-lg p-5 mb-6">
-          <h2 className="text-lg font-medium text-text-primary mb-4">Register New App</h2>
+          <h2 className="text-lg font-medium text-text-primary mb-4">{t('apps.registerNew')}</h2>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-text-secondary">App Type</label>
+              <label className="block text-sm font-medium text-text-secondary">{t('apps.appType')}</label>
               <select
                 value={form.appType}
                 onChange={e => setForm(f => ({ ...f, appType: e.target.value as AppType }))}
                 className="w-full rounded-md border border-border bg-bg-tertiary px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent"
               >
-                {APP_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                {APP_TYPES.map(at => <option key={at} value={at}>{at}</option>)}
               </select>
             </div>
-            <Input label="Display Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Obliview Production" required />
-            <Input label="Base URL" value={form.baseUrl} onChange={e => setForm(f => ({ ...f, baseUrl: e.target.value }))} placeholder="https://obliview.example.com" required />
+            <Input label={t('apps.displayName')} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t('apps.displayNamePlaceholder')} required />
+            <Input label={t('apps.baseUrl')} value={form.baseUrl} onChange={e => setForm(f => ({ ...f, baseUrl: e.target.value }))} placeholder={t('apps.baseUrlPlaceholder')} required />
             <div className="flex gap-2">
-              <Button type="submit" loading={saving}>Create</Button>
-              <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button type="submit" loading={saving}>{t('common.create')}</Button>
+              <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>{t('common.cancel')}</Button>
             </div>
           </form>
         </div>
@@ -120,22 +122,22 @@ export function AppsPage() {
               <div className="flex items-center gap-2">
                 <span className={`text-sm font-medium ${APP_COLORS[app.appType]}`}>{app.appType}</span>
                 <span className="text-text-primary font-medium">{app.name}</span>
-                {!app.isActive && <span className="text-xs bg-status-down-bg text-status-down px-1.5 py-0.5 rounded">Disabled</span>}
+                {!app.isActive && <span className="text-xs bg-status-down-bg text-status-down px-1.5 py-0.5 rounded">{t('common.disabled')}</span>}
               </div>
               <p className="text-xs text-text-muted mt-0.5 font-mono">{app.baseUrl}</p>
             </div>
             <div className="flex items-center gap-1.5">
-              <Button size="sm" variant="ghost" onClick={() => handleRegenKey(app.id)} title="Regenerate API key">
+              <Button size="sm" variant="ghost" onClick={() => handleRegenKey(app.id)} title={t('apps.regenerateKey')}>
                 <RotateCw size={14} />
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => handleDelete(app.id)} title="Delete">
+              <Button size="sm" variant="ghost" onClick={() => handleDelete(app.id)} title={t('common.delete')}>
                 <Trash2 size={14} className="text-status-down" />
               </Button>
             </div>
           </div>
         ))}
         {apps.length === 0 && (
-          <p className="text-center text-text-muted py-12 text-sm">No connected apps yet. Click "Add App" to register one.</p>
+          <p className="text-center text-text-muted py-12 text-sm">{t('apps.noApps')}</p>
         )}
       </div>
     </div>

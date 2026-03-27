@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AppWindow, Users, ShieldCheck, ExternalLink, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import apiClient from '../api/client';
 import { useAuthStore } from '../store/authStore';
 
@@ -33,6 +34,7 @@ const APP_ORDER: string[] = ['obliview', 'obliguard', 'oblimap', 'obliance'];
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'admin';
   const [apps, setApps] = useState<AppInfo[]>([]);
@@ -40,7 +42,6 @@ export function DashboardPage() {
   const [adminStats, setAdminStats] = useState({ apps: 0, users: 0, groups: 0 });
 
   useEffect(() => {
-    // Load user's apps
     apiClient.get('/account/apps').then(({ data }) => {
       if (data.success) {
         const enabledApps = (data.data as AppInfo[]).filter(a => a.enabled);
@@ -51,7 +52,6 @@ export function DashboardPage() {
         });
         setApps(enabledApps);
 
-        // Fetch dashboard stats from each app via Obligate proxy
         for (const app of enabledApps) {
           apiClient.get(`/admin/apps/${app.appId}/dashboard-stats`).then(({ data: sd }) => {
             if (sd.success && sd.data) {
@@ -62,7 +62,6 @@ export function DashboardPage() {
       }
     });
 
-    // Admin stats
     if (isAdmin) {
       Promise.all([
         apiClient.get('/admin/apps').catch(() => ({ data: { data: [] } })),
@@ -81,16 +80,15 @@ export function DashboardPage() {
   return (
     <div>
       <h1 className="text-2xl font-semibold text-text-primary mb-6">
-        {isAdmin ? 'Dashboard' : 'My Apps'}
+        {isAdmin ? t('dashboard.adminTitle') : t('dashboard.title')}
       </h1>
 
-      {/* Admin stats cards */}
       {isAdmin && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           {[
-            { icon: AppWindow, label: 'Connected Apps', value: adminStats.apps, path: '/apps', color: 'text-blue-400' },
-            { icon: Users, label: 'Users', value: adminStats.users, path: '/users', color: 'text-green-400' },
-            { icon: ShieldCheck, label: 'Permission Groups', value: adminStats.groups, path: '/groups', color: 'text-purple-400' },
+            { icon: AppWindow, label: t('dashboard.connectedApps'), value: adminStats.apps, path: '/apps', color: 'text-blue-400' },
+            { icon: Users, label: t('dashboard.users'), value: adminStats.users, path: '/users', color: 'text-green-400' },
+            { icon: ShieldCheck, label: t('dashboard.permissionGroups'), value: adminStats.groups, path: '/groups', color: 'text-purple-400' },
           ].map(card => (
             <button
               key={card.path}
@@ -107,7 +105,6 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* App grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {apps.map(app => {
           const color = app.color || APP_COLORS[app.appType] || '#6366f1';
@@ -117,8 +114,6 @@ export function DashboardPage() {
             <a
               key={app.appId}
               href={`${app.baseUrl}/auth/sso-redirect`}
-              target="_blank"
-              rel="noopener noreferrer"
               className="group bg-bg-secondary border border-border rounded-xl p-5 hover:border-border-light transition-all hover:shadow-lg cursor-pointer"
               style={{ borderTopColor: color, borderTopWidth: '3px' }}
             >
@@ -132,7 +127,6 @@ export function DashboardPage() {
                 <ExternalLink size={16} className="text-text-muted group-hover:text-accent transition-colors" />
               </div>
 
-              {/* Stats from app */}
               {appStats && appStats.length > 0 ? (
                 <div className="grid grid-cols-2 gap-2 mt-3">
                   {appStats.map((s, i) => (
@@ -147,8 +141,8 @@ export function DashboardPage() {
                   <Activity size={12} />
                   <span>
                     {app.lastLoginAt
-                      ? `Last login: ${new Date(app.lastLoginAt).toLocaleDateString()}`
-                      : 'Not yet connected'}
+                      ? t('dashboard.lastLogin', { date: new Date(app.lastLoginAt).toLocaleDateString() })
+                      : t('dashboard.notConnected')}
                   </span>
                 </div>
               )}
@@ -159,7 +153,7 @@ export function DashboardPage() {
         {apps.length === 0 && (
           <div className="col-span-full text-center py-16">
             <AppWindow size={40} className="text-text-muted mx-auto mb-3" />
-            <p className="text-text-muted">No apps available. Contact your administrator.</p>
+            <p className="text-text-muted">{t('dashboard.noApps')}</p>
           </div>
         )}
       </div>

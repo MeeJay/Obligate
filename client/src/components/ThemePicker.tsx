@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../utils/cn';
 
 type AppTheme = 'modern' | 'neon';
@@ -101,15 +102,17 @@ function NeonPreviewSvg() {
   );
 }
 
-const THEMES: { id: AppTheme; label: string; Preview: () => JSX.Element }[] = [
-  { id: 'modern', label: 'Modern UI', Preview: ModernPreviewSvg },
-  { id: 'neon',   label: 'Neon UI',   Preview: NeonPreviewSvg },
+const THEMES: { id: AppTheme; labelKey: string; Preview: () => JSX.Element }[] = [
+  { id: 'modern', labelKey: 'account.modernUi', Preview: ModernPreviewSvg },
+  { id: 'neon',   labelKey: 'account.neonUi',   Preview: NeonPreviewSvg },
 ];
 
 export function ThemePicker({ value, onChange }: ThemePickerProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {THEMES.map(({ id, label, Preview }) => {
+      {THEMES.map(({ id, labelKey, Preview }) => {
         const selected = value === id;
         return (
           <button
@@ -131,7 +134,7 @@ export function ThemePicker({ value, onChange }: ThemePickerProps) {
             </div>
             <div className="mt-2.5 flex items-center justify-between px-1 pb-0.5">
               <span className={cn('text-sm font-semibold', selected ? 'text-accent' : 'text-text-secondary')}>
-                {label}
+                {t(labelKey)}
               </span>
               {selected && (
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent">

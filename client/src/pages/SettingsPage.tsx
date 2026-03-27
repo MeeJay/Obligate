@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Lock, Mail, Eye, EyeOff, Save } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import apiClient from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -18,13 +19,13 @@ interface AppSettings {
 }
 
 export function SettingsPage() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [showSmtpPass, setShowSmtpPass] = useState(false);
 
-  // Local form state
   const [form, setForm] = useState<AppSettings>({
     minPasswordLength: 4,
     force2fa: false,
@@ -46,7 +47,7 @@ export function SettingsPage() {
   }, []);
 
   if (user?.role !== 'admin') {
-    return <p className="text-text-muted p-8">Admin access required.</p>;
+    return <p className="text-text-muted p-8">{t('settings.adminRequired')}</p>;
   }
 
   const save = async (section?: Partial<Record<string, string>>) => {
@@ -67,7 +68,7 @@ export function SettingsPage() {
       if (data.success) {
         setSettings(data.data);
         setForm(data.data);
-        setSuccess('Settings saved');
+        setSuccess(t('settings.saved'));
         setTimeout(() => setSuccess(''), 3000);
       }
     } catch { /* ignore */ }
@@ -80,22 +81,21 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <h1 className="text-2xl font-semibold text-text-primary">Settings</h1>
+      <h1 className="text-2xl font-semibold text-text-primary">{t('settings.title')}</h1>
 
       {success && (
         <div className="bg-status-up-bg border border-status-up/30 rounded-md p-3 text-sm text-status-up">{success}</div>
       )}
 
-      {/* ── Security ─────────────────────────────────────────── */}
       <section className="bg-bg-secondary border border-border rounded-lg p-5">
         <div className="flex items-center gap-2 mb-4">
           <Lock size={18} className="text-text-muted" />
-          <h2 className="text-lg font-medium text-text-primary">Security</h2>
+          <h2 className="text-lg font-medium text-text-primary">{t('settings.security')}</h2>
         </div>
 
         <div className="space-y-4">
           <div className="max-w-xs">
-            <label className="block text-sm font-medium text-text-secondary mb-1">Minimum Password Length</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">{t('settings.minPasswordLength')}</label>
             <input
               type="number"
               min={1}
@@ -104,13 +104,13 @@ export function SettingsPage() {
               onChange={e => setForm(f => ({ ...f, minPasswordLength: parseInt(e.target.value, 10) || 4 }))}
               className="w-full rounded-md border border-border bg-bg-tertiary px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent"
             />
-            <p className="text-xs text-text-muted mt-1">Enforced on user creation and password change</p>
+            <p className="text-xs text-text-muted mt-1">{t('settings.minPasswordLengthHelp')}</p>
           </div>
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text-primary">Force Two-Factor Authentication</p>
-              <p className="text-xs text-text-muted">Require all users to set up 2FA. New users will configure it during enrollment, existing users on next login.</p>
+              <p className="text-sm font-medium text-text-primary">{t('settings.force2fa')}</p>
+              <p className="text-xs text-text-muted">{t('settings.force2faDescription')}</p>
             </div>
             <button
               onClick={() => setForm(f => ({ ...f, force2fa: !f.force2fa }))}
@@ -124,29 +124,26 @@ export function SettingsPage() {
         </div>
       </section>
 
-      {/* ── SMTP ─────────────────────────────────────────────── */}
       <section className="bg-bg-secondary border border-border rounded-lg p-5">
         <div className="flex items-center gap-2 mb-4">
           <Mail size={18} className="text-text-muted" />
-          <h2 className="text-lg font-medium text-text-primary">Email (SMTP)</h2>
+          <h2 className="text-lg font-medium text-text-primary">{t('settings.smtp')}</h2>
           {smtpConfigured && (
-            <span className="text-xs bg-status-up-bg text-status-up px-2 py-0.5 rounded border border-status-up/30">Configured</span>
+            <span className="text-xs bg-status-up-bg text-status-up px-2 py-0.5 rounded border border-status-up/30">{t('settings.smtpConfigured')}</span>
           )}
         </div>
 
-        <p className="text-xs text-text-muted mb-4">
-          Configure an SMTP server to enable email-based 2FA (OTP by email). If not configured, only TOTP (authenticator app) is available.
-        </p>
+        <p className="text-xs text-text-muted mb-4">{t('settings.smtpDescription')}</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
-            label="SMTP Host"
+            label={t('settings.smtpHost')}
             value={form.smtpHost}
             onChange={e => setForm(f => ({ ...f, smtpHost: e.target.value }))}
-            placeholder="smtp.gmail.com"
+            placeholder={t('settings.smtpHostPlaceholder')}
           />
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">SMTP Port</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">{t('settings.smtpPort')}</label>
             <input
               type="number"
               value={form.smtpPort}
@@ -155,13 +152,13 @@ export function SettingsPage() {
             />
           </div>
           <Input
-            label="SMTP Username"
+            label={t('settings.smtpUser')}
             value={form.smtpUser}
             onChange={e => setForm(f => ({ ...f, smtpUser: e.target.value }))}
-            placeholder="user@gmail.com"
+            placeholder={t('settings.smtpUserPlaceholder')}
           />
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">SMTP Password</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">{t('settings.smtpPass')}</label>
             <div className="relative">
               <input
                 type={showSmtpPass ? 'text' : 'password'}
@@ -179,10 +176,10 @@ export function SettingsPage() {
             </div>
           </div>
           <Input
-            label="From Address"
+            label={t('settings.smtpFrom')}
             value={form.smtpFrom}
             onChange={e => setForm(f => ({ ...f, smtpFrom: e.target.value }))}
-            placeholder="noreply@company.com"
+            placeholder={t('settings.smtpFromPlaceholder')}
           />
           <div className="flex items-center gap-3 self-end pb-1">
             <button
@@ -193,15 +190,14 @@ export function SettingsPage() {
               <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
                 form.smtpTls ? 'translate-x-6' : 'translate-x-1')} />
             </button>
-            <span className="text-sm text-text-secondary">Use TLS</span>
+            <span className="text-sm text-text-secondary">{t('settings.useTls')}</span>
           </div>
         </div>
       </section>
 
-      {/* ── Save ─────────────────────────────────────────────── */}
       <div className="flex justify-end">
         <Button onClick={() => save()} loading={saving}>
-          <Save size={16} className="mr-1.5" /> Save Settings
+          <Save size={16} className="mr-1.5" /> {t('settings.saveSettings')}
         </Button>
       </div>
     </div>

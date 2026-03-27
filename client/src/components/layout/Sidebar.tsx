@@ -1,4 +1,5 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { LayoutDashboard, AppWindow, Users, ShieldCheck, FolderTree, UserCircle, Settings } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuthStore } from '../../store/authStore';
@@ -8,24 +9,25 @@ interface SidebarProps {
   onClose: () => void;
 }
 
-const navItems = [
-  { path: '/',              icon: LayoutDashboard, label: 'My Apps' },
-  { path: '/apps',          icon: AppWindow,       label: 'Connected Apps',     admin: true },
-  { path: '/users',         icon: Users,           label: 'Users',              admin: true },
-  { path: '/groups',        icon: ShieldCheck,     label: 'Permission Groups',  admin: true },
-  { path: '/directories',   icon: FolderTree,      label: 'Directories',        admin: true },
-  { path: '/settings',      icon: Settings,        label: 'Settings',           admin: true },
-];
-
-const bottomItems = [
-  { path: '/account',       icon: UserCircle,      label: 'My Account' },
-];
-
 export function Sidebar({ open, onClose }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'admin';
+
+  const navItems = [
+    { path: '/',              icon: LayoutDashboard, label: t('sidebar.myApps') },
+    { path: '/apps',          icon: AppWindow,       label: t('sidebar.connectedApps'),     admin: true },
+    { path: '/users',         icon: Users,           label: t('sidebar.users'),              admin: true },
+    { path: '/groups',        icon: ShieldCheck,     label: t('sidebar.permissionGroups'),  admin: true },
+    { path: '/directories',   icon: FolderTree,      label: t('sidebar.directories'),        admin: true },
+    { path: '/settings',      icon: Settings,        label: t('sidebar.settings'),           admin: true },
+  ];
+
+  const bottomItems = [
+    { path: '/account',       icon: UserCircle,      label: t('sidebar.myAccount') },
+  ];
 
   const handleNav = (path: string) => {
     navigate(path);
@@ -44,7 +46,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         'lg:static lg:translate-x-0 lg:z-auto',
         open ? 'translate-x-0' : '-translate-x-full',
       )}>
-        {/* Logo header */}
         <div className="h-14 flex-shrink-0 flex items-center px-4 border-b border-border">
           <Link to="/" className="flex items-center" onClick={onClose}>
             <img src="/logo.svg" alt="Obligate" style={{ height: '36px', width: 'auto' }} />

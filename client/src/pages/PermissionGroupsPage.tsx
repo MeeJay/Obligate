@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import apiClient from '../api/client';
 import { Button } from '../components/common/Button';
@@ -12,6 +13,7 @@ interface RemoteAppInfo {
 }
 
 export function PermissionGroupsPage() {
+  const { t } = useTranslation();
   const [groups, setGroups] = useState<PermissionGroup[]>([]);
   const [apps, setApps] = useState<ConnectedApp[]>([]);
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -101,28 +103,28 @@ export function PermissionGroupsPage() {
   const getAppName = (appId: number) => apps.find(a => a.id === appId)?.name ?? `App #${appId}`;
 
   // Filter teams by selected tenant
-  const filteredTeams = remoteInfo?.teams.filter(t =>
-    !mappingForm.tenantSlug || t.tenantSlug === mappingForm.tenantSlug
+  const filteredTeams = remoteInfo?.teams.filter(tm =>
+    !mappingForm.tenantSlug || tm.tenantSlug === mappingForm.tenantSlug
   ) ?? [];
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-text-primary">Permission Groups</h1>
+        <h1 className="text-2xl font-semibold text-text-primary">{t('groups.title')}</h1>
         <Button size="sm" onClick={() => setShowForm(true)}>
-          <Plus size={16} className="mr-1.5" /> Add Group
+          <Plus size={16} className="mr-1.5" /> {t('groups.addGroup')}
         </Button>
       </div>
 
       {showForm && (
         <div className="bg-bg-secondary border border-border rounded-lg p-5 mb-6">
-          <h2 className="text-lg font-medium text-text-primary mb-4">Create Permission Group</h2>
+          <h2 className="text-lg font-medium text-text-primary mb-4">{t('groups.createGroup')}</h2>
           <form onSubmit={handleCreateGroup} className="space-y-4">
-            <Input label="Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="IT Admins" required />
-            <Input label="Description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Full admin access on all apps" />
+            <Input label={t('groups.name')} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t('groups.namePlaceholder')} required />
+            <Input label={t('groups.description')} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder={t('groups.descriptionPlaceholder')} />
             <div className="flex gap-2">
-              <Button type="submit" loading={saving}>Create</Button>
-              <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button type="submit" loading={saving}>{t('common.create')}</Button>
+              <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>{t('common.cancel')}</Button>
             </div>
           </form>
         </div>
@@ -147,7 +149,7 @@ export function PermissionGroupsPage() {
 
             {expanded === group.id && (
               <div className="border-t border-border px-5 py-4 bg-bg-primary/50">
-                <p className="text-xs text-text-secondary font-medium mb-3">App Mappings</p>
+                <p className="text-xs text-text-secondary font-medium mb-3">{t('groups.appMappings')}</p>
 
                 {/* Existing mappings */}
                 {mappings.length > 0 && (
@@ -168,16 +170,16 @@ export function PermissionGroupsPage() {
                   </div>
                 )}
 
-                {mappings.length === 0 && <p className="text-xs text-text-muted mb-4">No mappings yet.</p>}
+                {mappings.length === 0 && <p className="text-xs text-text-muted mb-4">{t('groups.noMappings')}</p>}
 
                 {/* Add mapping form with dynamic dropdowns */}
                 <div className="bg-bg-tertiary rounded-lg p-3 space-y-3">
-                  <p className="text-xs text-text-secondary font-medium">Add mapping</p>
+                  <p className="text-xs text-text-secondary font-medium">{t('groups.addMapping')}</p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                     {/* App selector */}
                     <div className="space-y-1">
-                      <label className="text-xs text-text-muted">App</label>
+                      <label className="text-xs text-text-muted">{t('groups.app')}</label>
                       <select value={mappingForm.appId} onChange={e => onAppChange(parseInt(e.target.value))}
                         className="w-full rounded-md border border-border bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent">
                         {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -186,41 +188,41 @@ export function PermissionGroupsPage() {
 
                     {/* Role selector */}
                     <div className="space-y-1">
-                      <label className="text-xs text-text-muted">Role</label>
+                      <label className="text-xs text-text-muted">{t('groups.role')}</label>
                       <select value={mappingForm.appRole} onChange={e => setMappingForm(f => ({ ...f, appRole: e.target.value }))}
                         className="w-full rounded-md border border-border bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent">
-                        <option value="admin">admin (global)</option>
-                        <option value="user">user</option>
-                        <option value="viewer">viewer</option>
+                        <option value="admin">{t('groups.adminGlobal')}</option>
+                        <option value="user">{t('common.user')}</option>
+                        <option value="viewer">{t('groups.viewer')}</option>
                       </select>
                     </div>
 
                     {/* Tenant selector (dynamic from remote app) */}
                     <div className="space-y-1">
-                      <label className="text-xs text-text-muted">Tenant</label>
+                      <label className="text-xs text-text-muted">{t('groups.tenant')}</label>
                       {remoteLoading ? (
-                        <div className="text-xs text-text-muted py-2">Loading...</div>
+                        <div className="text-xs text-text-muted py-2">{t('common.loading')}</div>
                       ) : (
                         <select value={mappingForm.tenantSlug} onChange={e => setMappingForm(f => ({ ...f, tenantSlug: e.target.value, teamName: '' }))}
                           className="w-full rounded-md border border-border bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent">
-                          <option value="">(all tenants)</option>
-                          {remoteInfo?.tenants.map(t => <option key={t.slug} value={t.slug}>{t.name}</option>)}
+                          <option value="">{t('groups.allTenants')}</option>
+                          {remoteInfo?.tenants.map(tn => <option key={tn.slug} value={tn.slug}>{tn.name}</option>)}
                         </select>
                       )}
                     </div>
 
                     {/* Team selector (dynamic from remote app, filtered by tenant) */}
                     <div className="space-y-1">
-                      <label className="text-xs text-text-muted">Team</label>
+                      <label className="text-xs text-text-muted">{t('groups.team')}</label>
                       {remoteLoading ? (
-                        <div className="text-xs text-text-muted py-2">Loading...</div>
+                        <div className="text-xs text-text-muted py-2">{t('common.loading')}</div>
                       ) : (
                         <select value={mappingForm.teamName} onChange={e => setMappingForm(f => ({ ...f, teamName: e.target.value }))}
                           className="w-full rounded-md border border-border bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent">
-                          <option value="">(no team)</option>
-                          {filteredTeams.map(t => (
-                            <option key={`${t.tenantSlug}-${t.name}`} value={t.name}>
-                              {t.name}{mappingForm.tenantSlug ? '' : ` (${t.tenantName})`}
+                          <option value="">{t('groups.noTeam')}</option>
+                          {filteredTeams.map(tm => (
+                            <option key={`${tm.tenantSlug}-${tm.name}`} value={tm.name}>
+                              {tm.name}{mappingForm.tenantSlug ? '' : ` (${tm.tenantName})`}
                             </option>
                           ))}
                         </select>
@@ -229,11 +231,11 @@ export function PermissionGroupsPage() {
                   </div>
 
                   {!remoteInfo && !remoteLoading && (
-                    <p className="text-xs text-status-down">Could not connect to the app. Check that it is running and the API key is configured.</p>
+                    <p className="text-xs text-status-down">{t('groups.appConnectionError')}</p>
                   )}
 
                   <Button size="sm" onClick={() => handleAddMapping(group.id)} disabled={!mappingForm.appId}>
-                    Add Mapping
+                    {t('groups.addMapping')}
                   </Button>
                 </div>
               </div>
@@ -241,7 +243,7 @@ export function PermissionGroupsPage() {
           </div>
         ))}
         {groups.length === 0 && (
-          <p className="text-center text-text-muted py-12 text-sm">No permission groups yet.</p>
+          <p className="text-center text-text-muted py-12 text-sm">{t('groups.noGroups')}</p>
         )}
       </div>
     </div>

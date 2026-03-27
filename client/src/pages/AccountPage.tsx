@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ExternalLink, Key, User, Palette, Bell, Shield, EyeOff, Camera } from 'lucide-react';
 import apiClient from '../api/client';
 import { Button } from '../components/common/Button';
@@ -43,11 +44,6 @@ interface AppStatus {
   lastLoginAt: string | null;
 }
 
-const TOAST_POSITIONS = [
-  { value: 'bottom-right', label: 'Bottom Right' },
-  { value: 'top-center', label: 'Top Center' },
-];
-
 function AlertPreviewSvg({ position }: { position: 'bottom-right' | 'top-center' }) {
   return (
     <svg viewBox="0 0 200 120" className="w-full max-w-xs mx-auto rounded-lg border border-border bg-bg-primary">
@@ -76,6 +72,7 @@ function AlertPreviewSvg({ position }: { position: 'bottom-right' | 'top-center'
 }
 
 export function AccountPage() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [apps, setApps] = useState<AppStatus[]>([]);
   const [common, setCommon] = useState<CommonPreferences | null>(null);
@@ -111,32 +108,32 @@ export function AccountPage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <h1 className="text-2xl font-semibold text-text-primary">My Account</h1>
+      <h1 className="text-2xl font-semibold text-text-primary">{t('account.title')}</h1>
 
       {/* ── Profile ────────────────────────────────────────────── */}
       <section className="bg-bg-secondary border border-border rounded-lg p-5">
         <div className="flex items-center gap-2 mb-4">
           <User size={18} className="text-text-muted" />
-          <h2 className="text-lg font-medium text-text-primary">Profile</h2>
+          <h2 className="text-lg font-medium text-text-primary">{t('account.profile')}</h2>
         </div>
         <div className="flex items-start gap-5">
           <ProfilePhotoUpload currentUrl={common?.profilePhotoUrl ?? null} onSaved={url => saveCommon({ profilePhotoUrl: url })} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm flex-1">
             <div>
-              <span className="text-text-muted">Username</span>
+              <span className="text-text-muted">{t('account.username')}</span>
               <p className="text-text-primary font-medium">{user?.username}</p>
             </div>
             <div>
-              <span className="text-text-muted">Display Name</span>
-              <p className="text-text-primary font-medium">{user?.displayName || '—'}</p>
+              <span className="text-text-muted">{t('account.displayName')}</span>
+              <p className="text-text-primary font-medium">{user?.displayName || t('common.noData')}</p>
             </div>
             <div>
-              <span className="text-text-muted">Email</span>
-              <p className="text-text-primary font-medium">{user?.email || '—'}</p>
+              <span className="text-text-muted">{t('account.email')}</span>
+              <p className="text-text-primary font-medium">{user?.email || t('common.noData')}</p>
             </div>
             <div>
-              <span className="text-text-muted">Auth Source</span>
-              <p className="text-text-primary font-medium">{user?.authSource === 'ldap' ? 'LDAP' : 'Local'}</p>
+              <span className="text-text-muted">{t('account.authSource')}</span>
+              <p className="text-text-primary font-medium">{user?.authSource === 'ldap' ? t('account.ldap') : t('account.local')}</p>
             </div>
           </div>
         </div>
@@ -153,12 +150,12 @@ export function AccountPage() {
         <section className="bg-bg-secondary border border-border rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
             <Palette size={18} className="text-text-muted" />
-            <h2 className="text-lg font-medium text-text-primary">Appearance</h2>
+            <h2 className="text-lg font-medium text-text-primary">{t('account.appearance')}</h2>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-2">Theme</label>
+              <label className="block text-sm font-medium text-text-secondary mb-2">{t('account.theme')}</label>
               <ThemePicker
                 value={common.preferredTheme}
                 onChange={theme => saveCommon({ preferredTheme: theme })}
@@ -166,7 +163,7 @@ export function AccountPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-2">Language</label>
+              <label className="block text-sm font-medium text-text-secondary mb-2">{t('account.language')}</label>
               <select
                 value={common.preferredLanguage}
                 onChange={e => saveCommon({ preferredLanguage: e.target.value })}
@@ -201,14 +198,14 @@ export function AccountPage() {
         <section className="bg-bg-secondary border border-border rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
             <Bell size={18} className="text-text-muted" />
-            <h2 className="text-lg font-medium text-text-primary">Notifications</h2>
+            <h2 className="text-lg font-medium text-text-primary">{t('account.notifications')}</h2>
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-text-primary">Toast Notifications</p>
-                <p className="text-xs text-text-muted">Show popup notifications for status changes</p>
+                <p className="text-sm font-medium text-text-primary">{t('account.toastNotifications')}</p>
+                <p className="text-xs text-text-muted">{t('account.toastHelp')}</p>
               </div>
               <button
                 onClick={() => saveCommon({ toastEnabled: !common.toastEnabled })}
@@ -222,9 +219,12 @@ export function AccountPage() {
 
             {common.toastEnabled && (
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-2">Position</label>
+                <label className="block text-sm font-medium text-text-secondary mb-2">{t('account.toastPosition')}</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {TOAST_POSITIONS.map(p => (
+                  {[
+                    { value: 'bottom-right', label: t('account.bottomRight') },
+                    { value: 'top-center', label: t('account.topCenter') },
+                  ].map(p => (
                     <button
                       key={p.value}
                       onClick={() => saveCommon({ toastPosition: p.value })}
@@ -244,8 +244,8 @@ export function AccountPage() {
                       </div>
                       <p className="text-xs text-text-muted mb-3">
                         {p.value === 'bottom-right'
-                          ? 'Toasts stack in the bottom-right corner. Less intrusive, ideal for dashboards.'
-                          : 'Toasts appear centered at the top. More visible, good for critical alerts.'}
+                          ? t('account.bottomRightHelp')
+                          : t('account.topCenterHelp')}
                       </p>
                       <AlertPreviewSvg position={p.value as 'bottom-right' | 'top-center'} />
                     </button>
@@ -262,13 +262,13 @@ export function AccountPage() {
         <section className="bg-bg-secondary border border-border rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
             <EyeOff size={18} className="text-text-muted" />
-            <h2 className="text-lg font-medium text-text-primary">Privacy</h2>
+            <h2 className="text-lg font-medium text-text-primary">{t('account.privacy')}</h2>
           </div>
 
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-text-primary">Anonymous Mode</p>
-              <p className="text-xs text-text-muted">Hide sensitive data (hostnames, IPs, usernames) across all Obli* applications</p>
+              <p className="text-sm font-medium text-text-primary">{t('account.anonymousMode')}</p>
+              <p className="text-xs text-text-muted">{t('account.anonymousModeHelp')}</p>
             </div>
             <button
               onClick={() => saveCommon({ anonymousMode: !common.anonymousMode })}
@@ -287,7 +287,7 @@ export function AccountPage() {
         <section key={section.appId} className="bg-bg-secondary border border-border rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
             <Shield size={18} className="text-text-muted" />
-            <h2 className="text-lg font-medium text-text-primary">{section.appName} Preferences</h2>
+            <h2 className="text-lg font-medium text-text-primary">{t('account.appPreferences', { name: section.appName })}</h2>
             <span className="text-xs text-text-muted bg-bg-tertiary px-2 py-0.5 rounded">{section.appType}</span>
           </div>
 
@@ -301,7 +301,7 @@ export function AccountPage() {
               />
             ))}
             {section.schemas.length === 0 && (
-              <p className="text-xs text-text-muted">No specific preferences for this app.</p>
+              <p className="text-xs text-text-muted">{t('account.noAppPrefs')}</p>
             )}
           </div>
         </section>
@@ -309,7 +309,7 @@ export function AccountPage() {
 
       {/* ── Connected Apps ─────────────────────────────────────── */}
       <section className="bg-bg-secondary border border-border rounded-lg p-5">
-        <h2 className="text-lg font-medium text-text-primary mb-4">Connected Apps</h2>
+        <h2 className="text-lg font-medium text-text-primary mb-4">{t('account.connectedApps')}</h2>
         <div className="space-y-2">
           {apps.map(app => (
             <div key={app.appId} className="flex items-center justify-between bg-bg-tertiary rounded-lg px-4 py-3">
@@ -319,13 +319,13 @@ export function AccountPage() {
                   <span className="text-xs text-text-muted">{app.appType}</span>
                 </div>
                 <p className="text-xs text-text-muted mt-0.5">
-                  {app.linked ? 'Account linked' : 'Not linked'}
+                  {app.linked ? t('account.accountLinked') : t('account.notLinked')}
                   {app.lastLoginAt && <span className="ml-2">Last login: {new Date(app.lastLoginAt).toLocaleDateString()}</span>}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <span className={`text-xs ${app.enabled ? 'text-status-up' : 'text-status-down'}`}>
-                  {app.enabled ? 'Enabled' : 'Disabled'}
+                  {app.enabled ? t('common.enabled') : t('common.disabled')}
                 </span>
                 <a href={app.baseUrl} target="_blank" rel="noopener noreferrer" className="text-text-muted hover:text-text-primary">
                   <ExternalLink size={14} />
@@ -334,7 +334,7 @@ export function AccountPage() {
             </div>
           ))}
           {apps.length === 0 && (
-            <p className="text-center text-text-muted py-8 text-sm">No connected apps configured.</p>
+            <p className="text-center text-text-muted py-8 text-sm">{t('account.noConnectedApps')}</p>
           )}
         </div>
       </section>
@@ -394,6 +394,7 @@ function AppPreferenceField({ schema, value, onChange }: {
 }
 
 function ChangePasswordSection() {
+  const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -404,8 +405,8 @@ function ChangePasswordSection() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(''); setSuccess(false);
-    if (newPassword.length < 4) { setError('Password too short (min 4 chars)'); return; }
-    if (newPassword !== confirm) { setError('Passwords do not match'); return; }
+    if (newPassword.length < 4) { setError(t('account.passwordTooShort', { min: 4 })); return; }
+    if (newPassword !== confirm) { setError(t('account.passwordMismatch')); return; }
     setSaving(true);
     try {
       const { data } = await apiClient.put('/account/password', { currentPassword, newPassword });
@@ -421,21 +422,22 @@ function ChangePasswordSection() {
     <section className="bg-bg-secondary border border-border rounded-lg p-5">
       <div className="flex items-center gap-2 mb-4">
         <Key size={18} className="text-text-muted" />
-        <h2 className="text-lg font-medium text-text-primary">Change Password</h2>
+        <h2 className="text-lg font-medium text-text-primary">{t('account.changePassword')}</h2>
       </div>
       <form onSubmit={handleSubmit} className="space-y-3 max-w-sm">
-        <Input label="Current Password" type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
-        <Input label="New Password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
-        <Input label="Confirm New Password" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required />
+        <Input label={t('account.currentPassword')} type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
+        <Input label={t('account.newPassword')} type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required />
+        <Input label={t('account.confirmPassword')} type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required />
         {error && <div className="bg-status-down-bg border border-status-down/30 rounded-md p-3 text-sm text-status-down">{error}</div>}
-        {success && <div className="bg-status-up-bg border border-status-up/30 rounded-md p-3 text-sm text-status-up">Password changed successfully</div>}
-        <Button type="submit" loading={saving} size="sm">Update Password</Button>
+        {success && <div className="bg-status-up-bg border border-status-up/30 rounded-md p-3 text-sm text-status-up">{t('account.passwordChanged')}</div>}
+        <Button type="submit" loading={saving} size="sm">{t('account.updatePassword')}</Button>
       </form>
     </section>
   );
 }
 
 function TotpSection() {
+  const { t } = useTranslation();
   const [totpEnabled, setTotpEnabled] = useState(false);
   const [setupData, setSetupData] = useState<{ secret: string; qrDataUrl: string } | null>(null);
   const [code, setCode] = useState('');
@@ -492,29 +494,29 @@ function TotpSection() {
     <section className="bg-bg-secondary border border-border rounded-lg p-5">
       <div className="flex items-center gap-2 mb-4">
         <Shield size={18} className="text-text-muted" />
-        <h2 className="text-lg font-medium text-text-primary">Two-Factor Authentication</h2>
+        <h2 className="text-lg font-medium text-text-primary">{t('account.twoFactor')}</h2>
         {totpEnabled && (
-          <span className="text-xs bg-status-up-bg text-status-up px-2 py-0.5 rounded border border-status-up/30">Enabled</span>
+          <span className="text-xs bg-status-up-bg text-status-up px-2 py-0.5 rounded border border-status-up/30">{t('common.enabled')}</span>
         )}
       </div>
 
       {totpEnabled ? (
         <div>
-          <p className="text-sm text-text-muted mb-3">TOTP two-factor authentication is active. All Obli* apps are protected.</p>
-          <Button size="sm" variant="danger" onClick={disableTotp}>Disable 2FA</Button>
+          <p className="text-sm text-text-muted mb-3">{t('account.twoFactorActive')}</p>
+          <Button size="sm" variant="danger" onClick={disableTotp}>{t('account.disable2fa')}</Button>
         </div>
       ) : setupData ? (
         <form onSubmit={enableTotp} className="space-y-4">
-          <p className="text-sm text-text-muted">Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)</p>
+          <p className="text-sm text-text-muted">{t('account.scanQrHelp')}</p>
           <div className="flex justify-center">
             <img src={setupData.qrDataUrl} alt="TOTP QR Code" className="rounded-lg" width={200} height={200} />
           </div>
           <div>
-            <p className="text-xs text-text-muted mb-1">Or enter this secret manually:</p>
+            <p className="text-xs text-text-muted mb-1">{t('account.manualSecret')}</p>
             <code className="block bg-bg-tertiary px-3 py-2 rounded text-sm font-mono text-text-primary break-all select-all">{setupData.secret}</code>
           </div>
           <Input
-            label="Verification Code"
+            label={t('account.verificationCode')}
             type="text"
             inputMode="numeric"
             value={code}
@@ -524,14 +526,14 @@ function TotpSection() {
           />
           {error && <div className="bg-status-down-bg border border-status-down/30 rounded-md p-3 text-sm text-status-down">{error}</div>}
           <div className="flex gap-2">
-            <Button type="submit" loading={loading} size="sm">Enable 2FA</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setSetupData(null)}>Cancel</Button>
+            <Button type="submit" loading={loading} size="sm">{t('account.enable2fa')}</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setSetupData(null)}>{t('common.cancel')}</Button>
           </div>
         </form>
       ) : (
         <div>
-          <p className="text-sm text-text-muted mb-3">Add an extra layer of security. Once enabled, you'll need your authenticator app to sign in to all Obli* applications.</p>
-          <Button size="sm" onClick={startSetup}>Setup 2FA</Button>
+          <p className="text-sm text-text-muted mb-3">{t('account.setup2faHelp')}</p>
+          <Button size="sm" onClick={startSetup}>{t('account.setup2fa')}</Button>
         </div>
       )}
     </section>
@@ -539,12 +541,13 @@ function TotpSection() {
 }
 
 function ProfilePhotoUpload({ currentUrl, onSaved }: { currentUrl: string | null; onSaved: (url: string | null) => void }) {
+  const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 512 * 1024) { alert('Image too large (max 512 KB)'); return; }
+    if (file.size > 512 * 1024) { alert(t('account.imageTooLarge')); return; }
 
     setUploading(true);
     try {
@@ -581,7 +584,7 @@ function ProfilePhotoUpload({ currentUrl, onSaved }: { currentUrl: string | null
         <button
           onClick={() => onSaved(null)}
           className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-status-down flex items-center justify-center text-white text-xs border-2 border-bg-secondary hover:bg-status-down/80"
-          title="Remove photo"
+          title={t('account.removePhoto')}
         >
           ×
         </button>
