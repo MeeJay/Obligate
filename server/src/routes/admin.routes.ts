@@ -3,6 +3,7 @@ import { appService } from '../services/app.service';
 import { authService } from '../services/auth.service';
 import { permissionGroupService } from '../services/permissionGroup.service';
 import { configService } from '../services/config.service';
+import { ssoSyncService } from '../services/ssoSync.service';
 import { db } from '../db';
 import { logger } from '../utils/logger';
 
@@ -149,8 +150,22 @@ adminRoutes.post('/users', async (req, res) => {
 adminRoutes.put('/users/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
+    const before = await authService.getUserById(id);
     const user = await authService.updateUser(id, req.body);
     if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+
+    // Push SSO state changes to all connected apps
+    if (before) {
+      if (before.isActive && !user.isActive) {
+        ssoSyncService.pushUserChange(id, 'deactivate').catch(() => {});
+      } else if (!before.isActive && user.isActive) {
+        ssoSyncService.pushUserChange(id, 'reactivate').catch(() => {});
+      }
+      if (before.role !== user.role) {
+        ssoSyncService.pushUserChange(id, 'update-role', { role: user.role }).catch(() => {});
+      }
+    }
+
     res.json({ success: true, data: user });
   } catch (err) {
     logger.error(err, 'Failed to update user');
@@ -176,8 +191,17 @@ adminRoutes.delete('/users/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (id === req.session.userId) { res.status(400).json({ success: false, error: 'Cannot delete yourself' }); return; }
+
+    // Push delete to all connected apps BEFORE deleting locally (need user_app_links still intact)
+    await ssoSyncService.pushUserChange(id, 'delete');
+
     const ok = await authService.deleteUser(id);
     if (!ok) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+
+    // Clean up remaining app links and related data
+    await db('user_app_links').where({ user_id: id }).del();
+    await db('user_permission_groups').where({ user_id: id }).del();
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to delete user' });

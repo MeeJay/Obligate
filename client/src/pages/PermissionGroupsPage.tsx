@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, Power, Check } from 'lucide-react';
 import apiClient from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
+import { cn } from '../utils/cn';
 import type { PermissionGroup, PermissionGroupAppMapping, ConnectedApp } from '@obligate/shared';
 
 interface RemoteAppInfo {
@@ -11,6 +12,13 @@ interface RemoteAppInfo {
   teams: Array<{ id: number; name: string; tenantSlug: string; tenantName: string }>;
   tenants: Array<{ slug: string; name: string }>;
 }
+
+const APP_COLORS: Record<string, string> = {
+  obliview: '#19E2FF',
+  obliguard: '#FFA515',
+  oblimap: '#8DC63F',
+  obliance: '#C2001B',
+};
 
 export function PermissionGroupsPage() {
   const { t } = useTranslation();
@@ -22,10 +30,9 @@ export function PermissionGroupsPage() {
   const [form, setForm] = useState({ name: '', description: '' });
   const [saving, setSaving] = useState(false);
 
-  // Mapping form with remote info
-  const [mappingForm, setMappingForm] = useState({ appId: 0, appRole: 'user', tenantSlug: '', teamName: '' });
-  const [remoteInfo, setRemoteInfo] = useState<RemoteAppInfo | null>(null);
-  const [remoteLoading, setRemoteLoading] = useState(false);
+  // Remote info cache per app
+  const [remoteInfoMap, setRemoteInfoMap] = useState<Record<number, RemoteAppInfo | null>>({});
+  const [loadingApps, setLoadingApps] = useState<Set<number>>(new Set());
 
   const load = async () => {
     const [g, a] = await Promise.all([
@@ -38,32 +45,30 @@ export function PermissionGroupsPage() {
 
   useEffect(() => { load(); }, []);
 
+  const fetchRemoteInfo = useCallback(async (appId: number) => {
+    if (remoteInfoMap[appId] !== undefined) return; // Already loaded or loading
+    setLoadingApps(prev => new Set(prev).add(appId));
+    try {
+      const { data } = await apiClient.get(`/admin/apps/${appId}/remote-info`);
+      setRemoteInfoMap(prev => ({ ...prev, [appId]: data.success ? data.data : null }));
+    } catch {
+      setRemoteInfoMap(prev => ({ ...prev, [appId]: null }));
+    }
+    setLoadingApps(prev => { const s = new Set(prev); s.delete(appId); return s; });
+  }, [remoteInfoMap]);
+
   const toggleExpand = async (id: number) => {
     if (expanded === id) { setExpanded(null); return; }
     const { data } = await apiClient.get(`/admin/permission-groups/${id}/mappings`);
     if (data.success) setMappings(data.data);
     setExpanded(id);
-    setRemoteInfo(null);
-    if (apps.length > 0) {
-      const firstApp = apps[0];
-      setMappingForm({ appId: firstApp.id, appRole: 'user', tenantSlug: '', teamName: '' });
-      fetchRemoteInfo(firstApp.id);
-    }
+    // Fetch remote info for all apps
+    apps.forEach(a => fetchRemoteInfo(a.id));
   };
 
-  const fetchRemoteInfo = async (appId: number) => {
-    setRemoteLoading(true);
-    setRemoteInfo(null);
-    try {
-      const { data } = await apiClient.get(`/admin/apps/${appId}/remote-info`);
-      if (data.success && data.data) setRemoteInfo(data.data);
-    } catch { /* ignore */ }
-    finally { setRemoteLoading(false); }
-  };
-
-  const onAppChange = (appId: number) => {
-    setMappingForm(f => ({ ...f, appId, tenantSlug: '', teamName: '' }));
-    fetchRemoteInfo(appId);
+  const reloadMappings = async (groupId: number) => {
+    const { data } = await apiClient.get(`/admin/permission-groups/${groupId}/mappings`);
+    if (data.success) setMappings(data.data);
   };
 
   const handleCreateGroup = async (e: React.FormEvent) => {
@@ -76,36 +81,136 @@ export function PermissionGroupsPage() {
   };
 
   const handleDeleteGroup = async (id: number) => {
-    if (!confirm('Delete this permission group?')) return;
+    if (!confirm(t('groups.deleteConfirm'))) return;
     await apiClient.delete(`/admin/permission-groups/${id}`);
     if (expanded === id) setExpanded(null);
     load();
   };
 
-  const handleAddMapping = async (groupId: number) => {
-    if (!mappingForm.appId) return;
+  // ── App Matrix Helpers ──────────────────────────────────────────────────────
+
+  // Get all mappings for a specific app in the current group
+  const getMappingsForApp = (appId: number) => mappings.filter(m => m.appId === appId);
+
+  // Check if an app is "enabled" for this group (has at least one mapping)
+  const isAppEnabled = (appId: number) => getMappingsForApp(appId).length > 0;
+
+  // Get the role for an app (all mappings for same app should have same role)
+  const getAppRole = (appId: number) => getMappingsForApp(appId)[0]?.appRole ?? 'user';
+
+  // Get tenants that have mappings for this app
+  const getEnabledTenants = (appId: number): Set<string> => {
+    const slugs = new Set<string>();
+    for (const m of getMappingsForApp(appId)) {
+      if (m.tenantSlug) slugs.add(m.tenantSlug);
+    }
+    return slugs;
+  };
+
+  // Get teams that have mappings for this app
+  const getEnabledTeams = (appId: number): Set<string> => {
+    const names = new Set<string>();
+    for (const m of getMappingsForApp(appId)) {
+      if (m.teamName) names.add(m.teamName);
+    }
+    return names;
+  };
+
+  // Has a "global" mapping (no tenant specified)?
+  const hasGlobalMapping = (appId: number) => getMappingsForApp(appId).some(m => !m.tenantSlug);
+
+  // Toggle an entire app on/off
+  const toggleApp = async (groupId: number, appId: number) => {
+    if (isAppEnabled(appId)) {
+      // Remove all mappings for this app
+      for (const m of getMappingsForApp(appId)) {
+        await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
+      }
+    } else {
+      // Add a default mapping (user role, all tenants)
+      await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
+        appId, appRole: 'user', tenantSlug: null, teamName: null,
+      });
+    }
+    await reloadMappings(groupId);
+  };
+
+  // Change role for an app — delete all existing mappings and recreate with new role
+  const changeAppRole = async (groupId: number, appId: number, newRole: string) => {
+    const existing = getMappingsForApp(appId);
+    if (existing.length === 0) return;
+    // Delete all, recreate with same tenant/team but new role
+    for (const m of existing) {
+      await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
+    }
+    for (const m of existing) {
+      await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
+        appId, appRole: newRole, tenantSlug: m.tenantSlug, teamName: m.teamName,
+      });
+    }
+    await reloadMappings(groupId);
+  };
+
+  // Toggle a tenant for an app
+  const toggleTenant = async (groupId: number, appId: number, tenantSlug: string) => {
+    const role = getAppRole(appId);
+    const existing = getMappingsForApp(appId).filter(m => m.tenantSlug === tenantSlug);
+    if (existing.length > 0) {
+      // Remove this tenant's mappings
+      for (const m of existing) {
+        await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
+      }
+      // If we removed a global mapping and there was only one, we need to check if the app still has mappings
+    } else {
+      // Add mapping for this tenant
+      await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
+        appId, appRole: role, tenantSlug, teamName: null,
+      });
+      // If there was a global (null tenant) mapping, remove it since we're now specifying tenants
+      const globalMappings = getMappingsForApp(appId).filter(m => !m.tenantSlug);
+      for (const m of globalMappings) {
+        await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
+      }
+    }
+    await reloadMappings(groupId);
+  };
+
+  // Toggle "all tenants" (global mapping)
+  const toggleAllTenants = async (groupId: number, appId: number) => {
+    const role = getAppRole(appId);
+    if (hasGlobalMapping(appId)) {
+      // Can't disable all — this would disable the app. Do nothing.
+      return;
+    }
+    // Remove all tenant-specific mappings and replace with a global one
+    for (const m of getMappingsForApp(appId)) {
+      await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
+    }
     await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-      appId: mappingForm.appId,
-      appRole: mappingForm.appRole,
-      tenantSlug: mappingForm.tenantSlug || null,
-      teamName: mappingForm.teamName || null,
+      appId, appRole: role, tenantSlug: null, teamName: null,
     });
-    const { data } = await apiClient.get(`/admin/permission-groups/${groupId}/mappings`);
-    if (data.success) setMappings(data.data);
+    await reloadMappings(groupId);
   };
 
-  const handleDeleteMapping = async (groupId: number, mappingId: number) => {
-    await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${mappingId}`);
-    const { data } = await apiClient.get(`/admin/permission-groups/${groupId}/mappings`);
-    if (data.success) setMappings(data.data);
+  // Toggle a team for an app
+  const toggleTeam = async (groupId: number, appId: number, teamName: string) => {
+    const role = getAppRole(appId);
+    const enabledTenants = getEnabledTenants(appId);
+    // Find existing mapping for this team
+    const existing = getMappingsForApp(appId).find(m => m.teamName === teamName);
+    if (existing) {
+      await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${existing.id}`);
+    } else {
+      // Need a tenant slug — find it from the remote info
+      const info = remoteInfoMap[appId];
+      const teamInfo = info?.teams.find(tm => tm.name === teamName);
+      const tenantSlug = teamInfo?.tenantSlug ?? (enabledTenants.size === 1 ? [...enabledTenants][0] : null);
+      await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
+        appId, appRole: role, tenantSlug, teamName,
+      });
+    }
+    await reloadMappings(groupId);
   };
-
-  const getAppName = (appId: number) => apps.find(a => a.id === appId)?.name ?? `App #${appId}`;
-
-  // Filter teams by selected tenant
-  const filteredTeams = remoteInfo?.teams.filter(tm =>
-    !mappingForm.tenantSlug || tm.tenantSlug === mappingForm.tenantSlug
-  ) ?? [];
 
   return (
     <div>
@@ -149,95 +254,162 @@ export function PermissionGroupsPage() {
 
             {expanded === group.id && (
               <div className="border-t border-border px-5 py-4 bg-bg-primary/50">
-                <p className="text-xs text-text-secondary font-medium mb-3">{t('groups.appMappings')}</p>
+                <p className="text-xs text-text-secondary font-medium mb-4">{t('groups.appMappings')}</p>
 
-                {/* Existing mappings */}
-                {mappings.length > 0 && (
-                  <div className="space-y-1.5 mb-4">
-                    {mappings.map(m => (
-                      <div key={m.id} className="flex items-center justify-between bg-bg-tertiary rounded px-3 py-2 text-sm">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-text-primary font-medium">{getAppName(m.appId)}</span>
-                          <span className="text-xs bg-accent/20 text-accent px-1.5 py-0.5 rounded">{m.appRole}</span>
-                          {m.tenantSlug && <span className="text-xs text-text-muted bg-bg-hover px-1.5 py-0.5 rounded">tenant: {m.tenantSlug}</span>}
-                          {m.teamName && <span className="text-xs text-text-muted bg-bg-hover px-1.5 py-0.5 rounded">team: {m.teamName}</span>}
+                {apps.length === 0 ? (
+                  <p className="text-xs text-text-muted">{t('groups.noMappings')}</p>
+                ) : (
+                  <div className="space-y-3">
+                    {apps.map(app => {
+                      const enabled = isAppEnabled(app.id);
+                      const role = getAppRole(app.id);
+                      const info = remoteInfoMap[app.id];
+                      const isLoading = loadingApps.has(app.id);
+                      const color = app.color || APP_COLORS[app.appType] || '#888';
+                      const enabledTenants = getEnabledTenants(app.id);
+                      const enabledTeams = getEnabledTeams(app.id);
+                      const globalAccess = hasGlobalMapping(app.id);
+
+                      return (
+                        <div
+                          key={app.id}
+                          className={cn(
+                            'rounded-lg border overflow-hidden transition-all',
+                            enabled ? 'border-border-light bg-bg-secondary' : 'border-border bg-bg-tertiary/30 opacity-60',
+                          )}
+                        >
+                          {/* App header with enable toggle + role */}
+                          <div className="px-4 py-3 flex items-center gap-3" style={{ borderLeft: `3px solid ${enabled ? color : 'transparent'}` }}>
+                            {/* Enable/disable toggle */}
+                            <button
+                              onClick={() => toggleApp(group.id, app.id)}
+                              className={cn(
+                                'w-8 h-8 rounded-md flex items-center justify-center transition-colors flex-shrink-0',
+                                enabled ? 'bg-status-up/20 text-status-up' : 'bg-bg-hover text-text-muted hover:text-text-primary',
+                              )}
+                              title={enabled ? t('common.enabled') : t('common.disabled')}
+                            >
+                              <Power size={16} />
+                            </button>
+
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm font-medium text-text-primary">{app.name}</span>
+                              <span className="text-xs text-text-muted ml-2">{app.appType}</span>
+                            </div>
+
+                            {/* Role selector (only when enabled) */}
+                            {enabled && (
+                              <div className="flex items-center gap-1.5">
+                                {['admin', 'user', 'viewer'].map(r => (
+                                  <button
+                                    key={r}
+                                    onClick={() => changeAppRole(group.id, app.id, r)}
+                                    className={cn(
+                                      'px-2.5 py-1 rounded text-xs font-medium transition-colors',
+                                      role === r
+                                        ? 'bg-accent/20 text-accent border border-accent/40'
+                                        : 'bg-bg-hover text-text-muted hover:text-text-primary border border-transparent',
+                                    )}
+                                  >
+                                    {r}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Tenants + Teams (only when enabled and remote info loaded) */}
+                          {enabled && (
+                            <div className="border-t border-border px-4 py-3">
+                              {isLoading ? (
+                                <p className="text-xs text-text-muted">{t('common.loading')}</p>
+                              ) : !info ? (
+                                <p className="text-xs text-status-down">{t('groups.appConnectionError')}</p>
+                              ) : (
+                                <div className="space-y-3">
+                                  {/* Tenants */}
+                                  {info.tenants.length > 0 && (
+                                    <div>
+                                      <p className="text-xs text-text-muted mb-2">{t('groups.tenant')}</p>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {/* All tenants chip */}
+                                        <button
+                                          onClick={() => toggleAllTenants(group.id, app.id)}
+                                          className={cn(
+                                            'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors border',
+                                            globalAccess
+                                              ? 'bg-accent/15 text-accent border-accent/30'
+                                              : 'bg-bg-hover text-text-muted border-border hover:border-border-light',
+                                          )}
+                                        >
+                                          {globalAccess && <Check size={12} />}
+                                          {t('groups.allTenants')}
+                                        </button>
+                                        {/* Individual tenant chips */}
+                                        {info.tenants.map(tn => {
+                                          const active = enabledTenants.has(tn.slug) || globalAccess;
+                                          return (
+                                            <button
+                                              key={tn.slug}
+                                              onClick={() => !globalAccess && toggleTenant(group.id, app.id, tn.slug)}
+                                              disabled={globalAccess}
+                                              className={cn(
+                                                'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors border',
+                                                active
+                                                  ? 'bg-accent/15 text-accent border-accent/30'
+                                                  : 'bg-bg-hover text-text-muted border-border hover:border-border-light',
+                                                globalAccess && 'cursor-default',
+                                              )}
+                                            >
+                                              {active && <Check size={12} />}
+                                              {tn.name}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Teams */}
+                                  {info.teams.length > 0 && (
+                                    <div>
+                                      <p className="text-xs text-text-muted mb-2">{t('groups.team')}</p>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {info.teams.map(tm => {
+                                          const active = enabledTeams.has(tm.name);
+                                          return (
+                                            <button
+                                              key={`${tm.tenantSlug}-${tm.name}`}
+                                              onClick={() => toggleTeam(group.id, app.id, tm.name)}
+                                              className={cn(
+                                                'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors border',
+                                                active
+                                                  ? 'bg-accent/15 text-accent border-accent/30'
+                                                  : 'bg-bg-hover text-text-muted border-border hover:border-border-light',
+                                              )}
+                                            >
+                                              {active && <Check size={12} />}
+                                              {tm.name}
+                                              <span className="text-text-muted/60 ml-0.5">({tm.tenantName})</span>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {info.tenants.length === 0 && info.teams.length === 0 && (
+                                    <p className="text-xs text-text-muted italic">{t('groups.noMappings')}</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <button onClick={() => handleDeleteMapping(group.id, m.id)} className="text-text-muted hover:text-status-down">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
-
-                {mappings.length === 0 && <p className="text-xs text-text-muted mb-4">{t('groups.noMappings')}</p>}
-
-                {/* Add mapping form with dynamic dropdowns */}
-                <div className="bg-bg-tertiary rounded-lg p-3 space-y-3">
-                  <p className="text-xs text-text-secondary font-medium">{t('groups.addMapping')}</p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                    {/* App selector */}
-                    <div className="space-y-1">
-                      <label className="text-xs text-text-muted">{t('groups.app')}</label>
-                      <select value={mappingForm.appId} onChange={e => onAppChange(parseInt(e.target.value))}
-                        className="w-full rounded-md border border-border bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent">
-                        {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                      </select>
-                    </div>
-
-                    {/* Role selector */}
-                    <div className="space-y-1">
-                      <label className="text-xs text-text-muted">{t('groups.role')}</label>
-                      <select value={mappingForm.appRole} onChange={e => setMappingForm(f => ({ ...f, appRole: e.target.value }))}
-                        className="w-full rounded-md border border-border bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent">
-                        <option value="admin">{t('groups.adminGlobal')}</option>
-                        <option value="user">{t('common.user')}</option>
-                        <option value="viewer">{t('groups.viewer')}</option>
-                      </select>
-                    </div>
-
-                    {/* Tenant selector (dynamic from remote app) */}
-                    <div className="space-y-1">
-                      <label className="text-xs text-text-muted">{t('groups.tenant')}</label>
-                      {remoteLoading ? (
-                        <div className="text-xs text-text-muted py-2">{t('common.loading')}</div>
-                      ) : (
-                        <select value={mappingForm.tenantSlug} onChange={e => setMappingForm(f => ({ ...f, tenantSlug: e.target.value, teamName: '' }))}
-                          className="w-full rounded-md border border-border bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent">
-                          <option value="">{t('groups.allTenants')}</option>
-                          {remoteInfo?.tenants.map(tn => <option key={tn.slug} value={tn.slug}>{tn.name}</option>)}
-                        </select>
-                      )}
-                    </div>
-
-                    {/* Team selector (dynamic from remote app, filtered by tenant) */}
-                    <div className="space-y-1">
-                      <label className="text-xs text-text-muted">{t('groups.team')}</label>
-                      {remoteLoading ? (
-                        <div className="text-xs text-text-muted py-2">{t('common.loading')}</div>
-                      ) : (
-                        <select value={mappingForm.teamName} onChange={e => setMappingForm(f => ({ ...f, teamName: e.target.value }))}
-                          className="w-full rounded-md border border-border bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent">
-                          <option value="">{t('groups.noTeam')}</option>
-                          {filteredTeams.map(tm => (
-                            <option key={`${tm.tenantSlug}-${tm.name}`} value={tm.name}>
-                              {tm.name}{mappingForm.tenantSlug ? '' : ` (${tm.tenantName})`}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                  </div>
-
-                  {!remoteInfo && !remoteLoading && (
-                    <p className="text-xs text-status-down">{t('groups.appConnectionError')}</p>
-                  )}
-
-                  <Button size="sm" onClick={() => handleAddMapping(group.id)} disabled={!mappingForm.appId}>
-                    {t('groups.addMapping')}
-                  </Button>
-                </div>
               </div>
             )}
           </div>

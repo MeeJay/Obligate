@@ -77,14 +77,15 @@ apiRoutes.post('/report-provision', requireAppBearer, async (req: any, res) => {
     const { obligateUserId, remoteUserId } = req.body as {
       obligateUserId: number; remoteUserId: number;
     };
-    if (!obligateUserId || !remoteUserId) {
-      res.status(400).json({ success: false, error: 'Missing obligateUserId or remoteUserId' });
+    if (!obligateUserId) {
+      res.status(400).json({ success: false, error: 'Missing obligateUserId' });
       return;
     }
 
+    // remoteUserId=0 means the local user was deleted — clear the stale link
     await db('user_app_links')
       .where({ user_id: obligateUserId, app_id: req.appId })
-      .update({ remote_user_id: remoteUserId });
+      .update({ remote_user_id: remoteUserId || null });
 
     res.json({ success: true });
   } catch (err) {
