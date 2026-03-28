@@ -202,6 +202,7 @@
     "allTenants": "(all tenants)",
     "team": "Team",
     "noTeam": "(no team)",
+    "noTeamAccess": "No team access — all teams are restricted by default",
     "appConnectionError": "Could not connect to the app. Check that it is running and the API key is configured.",
     "noGroups": "No permission groups yet.",
     "deleteConfirm": "Are you sure you want to delete this group?"

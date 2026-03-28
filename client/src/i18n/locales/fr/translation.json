@@ -202,6 +202,7 @@
     "allTenants": "(tous les locataires)",
     "team": "Équipe",
     "noTeam": "(aucune équipe)",
+    "noTeamAccess": "Aucun accès aux équipes — toutes les équipes sont restreintes par défaut",
     "appConnectionError": "Impossible de se connecter à l'application. Vérifiez qu'elle est en cours d'exécution et que la clé API est configurée.",
     "noGroups": "Aucun groupe de permissions pour le moment.",
     "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce groupe ?"

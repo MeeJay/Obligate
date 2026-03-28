@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, ChevronDown, ChevronRight, Power, Check } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, Power, Check, Lock } from 'lucide-react';
 import apiClient from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
@@ -29,10 +29,12 @@ export function PermissionGroupsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
   const [saving, setSaving] = useState(false);
+  const [expandedTenants, setExpandedTenants] = useState<Set<string>>(new Set());
 
   // Remote info cache per app
   const [remoteInfoMap, setRemoteInfoMap] = useState<Record<number, RemoteAppInfo | null>>({});
   const [loadingApps, setLoadingApps] = useState<Set<number>>(new Set());
+  const fetchedRef = useRef<Set<number>>(new Set());
 
   const load = async () => {
     const [g, a] = await Promise.all([
@@ -45,8 +47,9 @@ export function PermissionGroupsPage() {
 
   useEffect(() => { load(); }, []);
 
-  const fetchRemoteInfo = useCallback(async (appId: number) => {
-    if (remoteInfoMap[appId] !== undefined) return; // Already loaded or loading
+  const fetchRemoteInfo = async (appId: number) => {
+    if (fetchedRef.current.has(appId)) return;
+    fetchedRef.current.add(appId);
     setLoadingApps(prev => new Set(prev).add(appId));
     try {
       const { data } = await apiClient.get(`/admin/apps/${appId}/remote-info`);
@@ -55,7 +58,7 @@ export function PermissionGroupsPage() {
       setRemoteInfoMap(prev => ({ ...prev, [appId]: null }));
     }
     setLoadingApps(prev => { const s = new Set(prev); s.delete(appId); return s; });
-  }, [remoteInfoMap]);
+  };
 
   const toggleExpand = async (id: number) => {
     if (expanded === id) { setExpanded(null); return; }
@@ -154,23 +157,38 @@ export function PermissionGroupsPage() {
   // Toggle a tenant for an app
   const toggleTenant = async (groupId: number, appId: number, tenantSlug: string) => {
     const role = getAppRole(appId);
+    const info = remoteInfoMap[appId];
+
+    // If currently in "all tenants" mode, switch to individual selection minus this tenant
+    if (hasGlobalMapping(appId)) {
+      for (const m of getMappingsForApp(appId)) {
+        await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
+      }
+      // Create mappings for all tenants EXCEPT the one being deselected
+      if (info?.tenants.length) {
+        for (const tn of info.tenants) {
+          if (tn.slug !== tenantSlug) {
+            await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
+              appId, appRole: role, tenantSlug: tn.slug, teamName: null,
+            });
+          }
+        }
+      }
+      await reloadMappings(groupId);
+      return;
+    }
+
     const existing = getMappingsForApp(appId).filter(m => m.tenantSlug === tenantSlug);
     if (existing.length > 0) {
       // Remove this tenant's mappings
       for (const m of existing) {
         await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
       }
-      // If we removed a global mapping and there was only one, we need to check if the app still has mappings
     } else {
       // Add mapping for this tenant
       await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
         appId, appRole: role, tenantSlug, teamName: null,
       });
-      // If there was a global (null tenant) mapping, remove it since we're now specifying tenants
-      const globalMappings = getMappingsForApp(appId).filter(m => !m.tenantSlug);
-      for (const m of globalMappings) {
-        await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
-      }
     }
     await reloadMappings(groupId);
   };
@@ -179,16 +197,28 @@ export function PermissionGroupsPage() {
   const toggleAllTenants = async (groupId: number, appId: number) => {
     const role = getAppRole(appId);
     if (hasGlobalMapping(appId)) {
-      // Can't disable all — this would disable the app. Do nothing.
-      return;
+      // Deselect "all tenants" → switch to individual tenant selection
+      // Remove global mapping(s), auto-select all available tenants so the app stays enabled
+      const info = remoteInfoMap[appId];
+      for (const m of getMappingsForApp(appId).filter(m => !m.tenantSlug)) {
+        await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
+      }
+      if (info?.tenants.length) {
+        for (const tn of info.tenants) {
+          await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
+            appId, appRole: role, tenantSlug: tn.slug, teamName: null,
+          });
+        }
+      }
+    } else {
+      // Select "all tenants" → remove all tenant-specific mappings and replace with a global one
+      for (const m of getMappingsForApp(appId)) {
+        await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
+      }
+      await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
+        appId, appRole: role, tenantSlug: null, teamName: null,
+      });
     }
-    // Remove all tenant-specific mappings and replace with a global one
-    for (const m of getMappingsForApp(appId)) {
-      await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
-    }
-    await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-      appId, appRole: role, tenantSlug: null, teamName: null,
-    });
     await reloadMappings(groupId);
   };
 
@@ -326,77 +356,128 @@ export function PermissionGroupsPage() {
                               ) : !info ? (
                                 <p className="text-xs text-status-down">{t('groups.appConnectionError')}</p>
                               ) : (
-                                <div className="space-y-3">
-                                  {/* Tenants */}
+                                <div className="space-y-2">
+                                  {/* All tenants toggle */}
                                   {info.tenants.length > 0 && (
-                                    <div>
-                                      <p className="text-xs text-text-muted mb-2">{t('groups.tenant')}</p>
-                                      <div className="flex flex-wrap gap-1.5">
-                                        {/* All tenants chip */}
-                                        <button
-                                          onClick={() => toggleAllTenants(group.id, app.id)}
-                                          className={cn(
-                                            'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors border',
-                                            globalAccess
-                                              ? 'bg-accent/15 text-accent border-accent/30'
-                                              : 'bg-bg-hover text-text-muted border-border hover:border-border-light',
-                                          )}
-                                        >
-                                          {globalAccess && <Check size={12} />}
-                                          {t('groups.allTenants')}
-                                        </button>
-                                        {/* Individual tenant chips */}
-                                        {info.tenants.map(tn => {
-                                          const active = enabledTenants.has(tn.slug) || globalAccess;
-                                          return (
-                                            <button
-                                              key={tn.slug}
-                                              onClick={() => !globalAccess && toggleTenant(group.id, app.id, tn.slug)}
-                                              disabled={globalAccess}
-                                              className={cn(
-                                                'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors border',
-                                                active
-                                                  ? 'bg-accent/15 text-accent border-accent/30'
-                                                  : 'bg-bg-hover text-text-muted border-border hover:border-border-light',
-                                                globalAccess && 'cursor-default',
-                                              )}
-                                            >
-                                              {active && <Check size={12} />}
-                                              {tn.name}
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <button
+                                        onClick={() => toggleAllTenants(group.id, app.id)}
+                                        className={cn(
+                                          'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border',
+                                          globalAccess
+                                            ? 'bg-accent/15 text-accent border-accent/30'
+                                            : 'bg-bg-hover text-text-muted border-border hover:border-border-light',
+                                        )}
+                                      >
+                                        {globalAccess && <Check size={12} />}
+                                        {t('groups.allTenants')}
+                                      </button>
+                                      <span className="text-xs text-text-muted">{t('groups.tenant')}</span>
                                     </div>
                                   )}
 
-                                  {/* Teams */}
-                                  {info.teams.length > 0 && (
-                                    <div>
-                                      <p className="text-xs text-text-muted mb-2">{t('groups.team')}</p>
-                                      <div className="flex flex-wrap gap-1.5">
-                                        {info.teams.map(tm => {
-                                          const active = enabledTeams.has(tm.name);
-                                          return (
-                                            <button
-                                              key={`${tm.tenantSlug}-${tm.name}`}
-                                              onClick={() => toggleTeam(group.id, app.id, tm.name)}
-                                              className={cn(
-                                                'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors border',
-                                                active
-                                                  ? 'bg-accent/15 text-accent border-accent/30'
-                                                  : 'bg-bg-hover text-text-muted border-border hover:border-border-light',
-                                              )}
-                                            >
-                                              {active && <Check size={12} />}
-                                              {tm.name}
-                                              <span className="text-text-muted/60 ml-0.5">({tm.tenantName})</span>
-                                            </button>
-                                          );
-                                        })}
+                                  {/* Tenant accordion — each tenant expands to show its teams */}
+                                  {info.tenants.map(tn => {
+                                    const tenantActive = enabledTenants.has(tn.slug) || globalAccess;
+                                    const tenantTeams = info.teams.filter(tm => tm.tenantSlug === tn.slug);
+                                    const tenantExpanded = expandedTenants.has(`${app.id}-${tn.slug}`);
+                                    const tenantEnabledTeams = tenantTeams.filter(tm => enabledTeams.has(tm.name));
+
+                                    return (
+                                      <div key={tn.slug} className={cn(
+                                        'rounded-md border overflow-hidden',
+                                        tenantActive ? 'border-border-light' : 'border-border opacity-50',
+                                      )}>
+                                        {/* Tenant header row */}
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-bg-tertiary/50">
+                                          {/* Tenant enable/disable checkbox */}
+                                          <button
+                                            onClick={() => toggleTenant(group.id, app.id, tn.slug)}
+                                            className={cn(
+                                              'w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border transition-colors',
+                                              tenantActive
+                                                ? 'bg-accent/20 border-accent/40 text-accent'
+                                                : 'bg-bg-hover border-border text-transparent hover:border-border-light',
+                                            )}
+                                          >
+                                            {tenantActive && <Check size={12} />}
+                                          </button>
+
+                                          {/* Tenant name — click to expand teams */}
+                                          <button
+                                            onClick={() => setExpandedTenants(prev => {
+                                              const key = `${app.id}-${tn.slug}`;
+                                              const next = new Set(prev);
+                                              next.has(key) ? next.delete(key) : next.add(key);
+                                              return next;
+                                            })}
+                                            className="flex items-center gap-1.5 flex-1 text-left"
+                                          >
+                                            {tenantTeams.length > 0 && (
+                                              tenantExpanded
+                                                ? <ChevronDown size={12} className="text-text-muted flex-shrink-0" />
+                                                : <ChevronRight size={12} className="text-text-muted flex-shrink-0" />
+                                            )}
+                                            <span className={cn('text-xs font-medium', tenantActive ? 'text-text-primary' : 'text-text-muted')}>
+                                              {tn.name}
+                                            </span>
+                                          </button>
+
+                                          {/* Team count badge */}
+                                          {tenantTeams.length > 0 && (
+                                            <span className={cn(
+                                              'text-[10px] px-1.5 py-0.5 rounded',
+                                              tenantEnabledTeams.length > 0
+                                                ? 'bg-accent/15 text-accent'
+                                                : 'bg-bg-hover text-text-muted',
+                                            )}>
+                                              {tenantEnabledTeams.length}/{tenantTeams.length} teams
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {/* Expanded teams list */}
+                                        {tenantExpanded && tenantTeams.length > 0 && (
+                                          <div className="px-3 py-2 space-y-1 border-t border-border bg-bg-primary/30">
+                                            {tenantEnabledTeams.length === 0 && (
+                                              <div className="flex items-center gap-1.5 text-[10px] text-text-muted/70 py-1">
+                                                <Lock size={10} />
+                                                {t('groups.noTeamAccess')}
+                                              </div>
+                                            )}
+                                            {tenantTeams.map(tm => {
+                                              const teamActive = enabledTeams.has(tm.name);
+                                              return (
+                                                <button
+                                                  key={tm.name}
+                                                  onClick={() => toggleTeam(group.id, app.id, tm.name)}
+                                                  className={cn(
+                                                    'w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors',
+                                                    teamActive
+                                                      ? 'bg-accent/10 text-accent'
+                                                      : 'text-text-muted hover:bg-bg-hover hover:text-text-primary',
+                                                  )}
+                                                >
+                                                  <span className={cn(
+                                                    'w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors',
+                                                    teamActive
+                                                      ? 'bg-accent/20 border-accent/40 text-accent'
+                                                      : 'bg-bg-hover border-border text-transparent',
+                                                  )}>
+                                                    {teamActive && <Check size={10} />}
+                                                  </span>
+                                                  <span className="flex-1 text-left">{tm.name}</span>
+                                                  {!teamActive && (
+                                                    <Lock size={10} className="text-text-muted/40" />
+                                                  )}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
                                       </div>
-                                    </div>
-                                  )}
+                                    );
+                                  })}
 
                                   {info.tenants.length === 0 && info.teams.length === 0 && (
                                     <p className="text-xs text-text-muted italic">{t('groups.noMappings')}</p>
