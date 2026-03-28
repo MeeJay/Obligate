@@ -24,10 +24,10 @@ interface DashboardStats {
 }
 
 const APP_COLORS: Record<string, string> = {
-  obliview: '#6366f1',
-  obliguard: '#f97316',
-  oblimap: '#10b981',
-  obliance: '#8b5cf6',
+  obliview: '#19E2FF',
+  obliguard: '#FFA515',
+  oblimap: '#8DC63F',
+  obliance: '#C2001B',
 };
 
 const APP_ORDER: string[] = ['obliview', 'obliguard', 'oblimap', 'obliance'];
@@ -107,7 +107,7 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {apps.map(app => {
-          const color = app.color || APP_COLORS[app.appType] || '#6366f1';
+          const color = app.color || APP_COLORS[app.appType] || '#19E2FF';
           const appStats = stats[app.appId]?.stats;
 
           return (
