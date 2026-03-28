@@ -3,6 +3,7 @@ import { appService } from '../services/app.service';
 import { authService } from '../services/auth.service';
 import { permissionGroupService } from '../services/permissionGroup.service';
 import { configService } from '../services/config.service';
+import { capabilityService } from '../services/capability.service';
 import { ssoSyncService } from '../services/ssoSync.service';
 import { db } from '../db';
 import { logger } from '../utils/logger';
@@ -103,6 +104,17 @@ adminRoutes.get('/apps/:id/remote-info', async (req, res) => {
   } catch (err) {
     logger.error(err, 'Failed to fetch remote app info');
     res.json({ success: true, data: null });
+  }
+});
+
+adminRoutes.get('/apps/:id/capability-schemas', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const schemas = await capabilityService.getSchemasForApp(id);
+    res.json({ success: true, data: schemas });
+  } catch (err) {
+    logger.error(err, 'Failed to fetch capability schemas');
+    res.status(500).json({ success: false, error: 'Failed to fetch capability schemas' });
   }
 });
 
@@ -280,6 +292,18 @@ adminRoutes.post('/permission-groups/:id/mappings', async (req, res) => {
     res.status(201).json({ success: true, data: mapping });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to add mapping' });
+  }
+});
+
+adminRoutes.put('/permission-groups/:gid/mappings/:mid', async (req, res) => {
+  try {
+    const mid = parseInt(req.params.mid, 10);
+    const { appRole, capabilities } = req.body as { appRole?: string; capabilities?: string[] | null };
+    const mapping = await permissionGroupService.updateMapping(mid, { appRole, capabilities });
+    if (!mapping) { res.status(404).json({ success: false, error: 'Mapping not found' }); return; }
+    res.json({ success: true, data: mapping });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to update mapping' });
   }
 });
 

@@ -1,11 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, ChevronDown, ChevronRight, Power, Check, Lock } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, Power, Check, Lock, Shield } from 'lucide-react';
 import apiClient from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { cn } from '../utils/cn';
-import type { PermissionGroup, PermissionGroupAppMapping, ConnectedApp } from '@obligate/shared';
+import type { PermissionGroup, PermissionGroupAppMapping, ConnectedApp, AppCapabilitySchema } from '@obligate/shared';
 
 interface RemoteAppInfo {
   roles: string[];
@@ -31,8 +31,9 @@ export function PermissionGroupsPage() {
   const [saving, setSaving] = useState(false);
   const [expandedTenants, setExpandedTenants] = useState<Set<string>>(new Set());
 
-  // Remote info cache per app
+  // Remote info + capability schemas cache per app
   const [remoteInfoMap, setRemoteInfoMap] = useState<Record<number, RemoteAppInfo | null>>({});
+  const [capSchemasMap, setCapSchemasMap] = useState<Record<number, AppCapabilitySchema[]>>({});
   const [loadingApps, setLoadingApps] = useState<Set<number>>(new Set());
   const fetchedRef = useRef<Set<number>>(new Set());
 
@@ -52,10 +53,15 @@ export function PermissionGroupsPage() {
     fetchedRef.current.add(appId);
     setLoadingApps(prev => new Set(prev).add(appId));
     try {
-      const { data } = await apiClient.get(`/admin/apps/${appId}/remote-info`);
-      setRemoteInfoMap(prev => ({ ...prev, [appId]: data.success ? data.data : null }));
+      const [ri, cs] = await Promise.all([
+        apiClient.get(`/admin/apps/${appId}/remote-info`),
+        apiClient.get(`/admin/apps/${appId}/capability-schemas`),
+      ]);
+      setRemoteInfoMap(prev => ({ ...prev, [appId]: ri.data.success ? ri.data.data : null }));
+      setCapSchemasMap(prev => ({ ...prev, [appId]: cs.data.success ? cs.data.data : [] }));
     } catch {
       setRemoteInfoMap(prev => ({ ...prev, [appId]: null }));
+      setCapSchemasMap(prev => ({ ...prev, [appId]: [] }));
     }
     setLoadingApps(prev => { const s = new Set(prev); s.delete(appId); return s; });
   };
@@ -65,7 +71,6 @@ export function PermissionGroupsPage() {
     const { data } = await apiClient.get(`/admin/permission-groups/${id}/mappings`);
     if (data.success) setMappings(data.data);
     setExpanded(id);
-    // Fetch remote info for all apps
     apps.forEach(a => fetchRemoteInfo(a.id));
   };
 
@@ -90,18 +95,12 @@ export function PermissionGroupsPage() {
     load();
   };
 
-  // ── App Matrix Helpers ──────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────────
 
-  // Get all mappings for a specific app in the current group
   const getMappingsForApp = (appId: number) => mappings.filter(m => m.appId === appId);
-
-  // Check if an app is "enabled" for this group (has at least one mapping)
   const isAppEnabled = (appId: number) => getMappingsForApp(appId).length > 0;
+  const hasGlobalMapping = (appId: number) => getMappingsForApp(appId).some(m => !m.tenantSlug);
 
-  // Get the role for an app (all mappings for same app should have same role)
-  const getAppRole = (appId: number) => getMappingsForApp(appId)[0]?.appRole ?? 'user';
-
-  // Get tenants that have mappings for this app
   const getEnabledTenants = (appId: number): Set<string> => {
     const slugs = new Set<string>();
     for (const m of getMappingsForApp(appId)) {
@@ -110,7 +109,6 @@ export function PermissionGroupsPage() {
     return slugs;
   };
 
-  // Get teams that have mappings for this app
   const getEnabledTeams = (appId: number): Set<string> => {
     const names = new Set<string>();
     for (const m of getMappingsForApp(appId)) {
@@ -119,57 +117,51 @@ export function PermissionGroupsPage() {
     return names;
   };
 
-  // Has a "global" mapping (no tenant specified)?
-  const hasGlobalMapping = (appId: number) => getMappingsForApp(appId).some(m => !m.tenantSlug);
+  // Get the base (non-team) mapping for a specific tenant
+  const getTenantBaseMapping = (appId: number, tenantSlug: string) =>
+    getMappingsForApp(appId).find(m => m.tenantSlug === tenantSlug && !m.teamName);
 
-  // Toggle an entire app on/off
+  // Get role for a specific tenant (from its base mapping)
+  const getTenantRole = (appId: number, tenantSlug: string): string =>
+    getTenantBaseMapping(appId, tenantSlug)?.appRole ?? 'user';
+
+  // ── Actions ─────────────────────────────────────────────────────────────────
+
   const toggleApp = async (groupId: number, appId: number) => {
     if (isAppEnabled(appId)) {
-      // Remove all mappings for this app
       for (const m of getMappingsForApp(appId)) {
         await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
       }
     } else {
-      // Add a default mapping (user role, all tenants)
-      await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-        appId, appRole: 'user', tenantSlug: null, teamName: null,
-      });
+      const info = remoteInfoMap[appId];
+      if (info?.tenants.length) {
+        for (const tn of info.tenants) {
+          await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
+            appId, appRole: 'user', tenantSlug: tn.slug, teamName: null, capabilities: [],
+          });
+        }
+      } else {
+        await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
+          appId, appRole: 'user', tenantSlug: null, teamName: null, capabilities: [],
+        });
+      }
     }
     await reloadMappings(groupId);
   };
 
-  // Change role for an app — delete all existing mappings and recreate with new role
-  const changeAppRole = async (groupId: number, appId: number, newRole: string) => {
-    const existing = getMappingsForApp(appId);
-    if (existing.length === 0) return;
-    // Delete all, recreate with same tenant/team but new role
-    for (const m of existing) {
-      await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
-    }
-    for (const m of existing) {
-      await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-        appId, appRole: newRole, tenantSlug: m.tenantSlug, teamName: m.teamName,
-      });
-    }
-    await reloadMappings(groupId);
-  };
-
-  // Toggle a tenant for an app
   const toggleTenant = async (groupId: number, appId: number, tenantSlug: string) => {
-    const role = getAppRole(appId);
     const info = remoteInfoMap[appId];
 
-    // If currently in "all tenants" mode, switch to individual selection minus this tenant
     if (hasGlobalMapping(appId)) {
+      // Switch from global to individual — deselect this tenant
       for (const m of getMappingsForApp(appId)) {
         await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
       }
-      // Create mappings for all tenants EXCEPT the one being deselected
       if (info?.tenants.length) {
         for (const tn of info.tenants) {
           if (tn.slug !== tenantSlug) {
             await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-              appId, appRole: role, tenantSlug: tn.slug, teamName: null,
+              appId, appRole: 'user', tenantSlug: tn.slug, teamName: null, capabilities: [],
             });
           }
         }
@@ -180,66 +172,135 @@ export function PermissionGroupsPage() {
 
     const existing = getMappingsForApp(appId).filter(m => m.tenantSlug === tenantSlug);
     if (existing.length > 0) {
-      // Remove this tenant's mappings
       for (const m of existing) {
         await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
       }
     } else {
-      // Add mapping for this tenant
       await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-        appId, appRole: role, tenantSlug, teamName: null,
+        appId, appRole: 'user', tenantSlug, teamName: null, capabilities: [],
       });
     }
     await reloadMappings(groupId);
   };
 
-  // Toggle "all tenants" (global mapping)
   const toggleAllTenants = async (groupId: number, appId: number) => {
-    const role = getAppRole(appId);
     if (hasGlobalMapping(appId)) {
-      // Deselect "all tenants" → switch to individual tenant selection
-      // Remove global mapping(s), auto-select all available tenants so the app stays enabled
       const info = remoteInfoMap[appId];
-      for (const m of getMappingsForApp(appId).filter(m => !m.tenantSlug)) {
+      const globalMapping = getMappingsForApp(appId).find(m => !m.tenantSlug);
+      const role = globalMapping?.appRole ?? 'user';
+      const caps = globalMapping?.capabilities ?? [];
+      for (const m of getMappingsForApp(appId)) {
         await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
       }
       if (info?.tenants.length) {
         for (const tn of info.tenants) {
           await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-            appId, appRole: role, tenantSlug: tn.slug, teamName: null,
+            appId, appRole: role, tenantSlug: tn.slug, teamName: null, capabilities: caps,
           });
         }
       }
     } else {
-      // Select "all tenants" → remove all tenant-specific mappings and replace with a global one
+      const firstMapping = getMappingsForApp(appId)[0];
+      const role = firstMapping?.appRole ?? 'user';
+      const caps = firstMapping?.capabilities ?? [];
       for (const m of getMappingsForApp(appId)) {
         await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
       }
       await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-        appId, appRole: role, tenantSlug: null, teamName: null,
+        appId, appRole: role, tenantSlug: null, teamName: null, capabilities: caps,
       });
     }
     await reloadMappings(groupId);
   };
 
-  // Toggle a team for an app
-  const toggleTeam = async (groupId: number, appId: number, teamName: string) => {
-    const role = getAppRole(appId);
-    const enabledTenants = getEnabledTenants(appId);
-    // Find existing mapping for this team
-    const existing = getMappingsForApp(appId).find(m => m.teamName === teamName);
+  const changeTenantRole = async (groupId: number, appId: number, tenantSlug: string | null, newRole: string) => {
+    // Update all mappings for this tenant (base + team mappings)
+    const targetMappings = getMappingsForApp(appId).filter(m =>
+      tenantSlug === null ? !m.tenantSlug : m.tenantSlug === tenantSlug
+    );
+    for (const m of targetMappings) {
+      await apiClient.put(`/admin/permission-groups/${groupId}/mappings/${m.id}`, { appRole: newRole });
+    }
+    await reloadMappings(groupId);
+  };
+
+  const toggleCapability = async (groupId: number, mappingId: number, cap: string, currentCaps: string[]) => {
+    const newCaps = currentCaps.includes(cap)
+      ? currentCaps.filter(c => c !== cap)
+      : [...currentCaps, cap];
+    await apiClient.put(`/admin/permission-groups/${groupId}/mappings/${mappingId}`, { capabilities: newCaps });
+    await reloadMappings(groupId);
+  };
+
+  const toggleTeam = async (groupId: number, appId: number, teamName: string, tenantSlug: string) => {
+    const existing = getMappingsForApp(appId).find(m => m.teamName === teamName && m.tenantSlug === tenantSlug);
     if (existing) {
       await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${existing.id}`);
     } else {
-      // Need a tenant slug — find it from the remote info
-      const info = remoteInfoMap[appId];
-      const teamInfo = info?.teams.find(tm => tm.name === teamName);
-      const tenantSlug = teamInfo?.tenantSlug ?? (enabledTenants.size === 1 ? [...enabledTenants][0] : null);
+      const role = getTenantRole(appId, tenantSlug);
       await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-        appId, appRole: role, tenantSlug, teamName,
+        appId, appRole: role, tenantSlug, teamName, capabilities: [],
       });
     }
     await reloadMappings(groupId);
+  };
+
+  const toggleTenantExpand = (appId: number, tenantSlug: string) => {
+    setExpandedTenants(prev => {
+      const key = `${appId}-${tenantSlug}`;
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  const renderRoleSelector = (groupId: number, appId: number, tenantSlug: string | null, currentRole: string) => (
+    <div className="flex items-center gap-1">
+      {['admin', 'user', 'viewer'].map(r => (
+        <button
+          key={r}
+          onClick={() => changeTenantRole(groupId, appId, tenantSlug, r)}
+          className={cn(
+            'px-2 py-0.5 rounded text-[10px] font-medium transition-colors',
+            currentRole === r
+              ? 'bg-accent/20 text-accent border border-accent/40'
+              : 'bg-bg-hover text-text-muted hover:text-text-primary border border-transparent',
+          )}
+        >
+          {r}
+        </button>
+      ))}
+    </div>
+  );
+
+  const renderCapabilities = (groupId: number, mappingId: number | undefined, appId: number, currentCaps: string[]) => {
+    const schemas = capSchemasMap[appId];
+    if (!schemas?.length || !mappingId) return null;
+    return (
+      <div className="flex items-center gap-1 flex-wrap">
+        {schemas.map(s => {
+          const active = currentCaps.includes(s.key);
+          return (
+            <button
+              key={s.key}
+              onClick={() => toggleCapability(groupId, mappingId, s.key, currentCaps)}
+              title={s.description ?? s.label}
+              className={cn(
+                'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-colors border',
+                active
+                  ? 'bg-status-up/15 text-status-up border-status-up/30'
+                  : 'bg-bg-hover text-text-muted border-border hover:border-border-light',
+              )}
+            >
+              {active ? <Check size={9} /> : <Lock size={9} className="opacity-40" />}
+              {s.label}
+            </button>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
@@ -275,7 +336,6 @@ export function PermissionGroupsPage() {
                   <span className="text-text-primary font-medium">{group.name}</span>
                   {group.description && <p className="text-xs text-text-muted mt-0.5">{group.description}</p>}
                 </div>
-                <span className="text-xs text-text-muted ml-2 bg-bg-tertiary px-2 py-0.5 rounded">{group.scope}</span>
               </button>
               <Button size="sm" variant="ghost" onClick={() => handleDeleteGroup(group.id)}>
                 <Trash2 size={14} className="text-status-down" />
@@ -292,13 +352,14 @@ export function PermissionGroupsPage() {
                   <div className="space-y-3">
                     {apps.map(app => {
                       const enabled = isAppEnabled(app.id);
-                      const role = getAppRole(app.id);
                       const info = remoteInfoMap[app.id];
                       const isLoading = loadingApps.has(app.id);
                       const color = app.color || APP_COLORS[app.appType] || '#888';
                       const enabledTenants = getEnabledTenants(app.id);
                       const enabledTeams = getEnabledTeams(app.id);
                       const globalAccess = hasGlobalMapping(app.id);
+                      const globalMapping = getMappingsForApp(app.id).find(m => !m.tenantSlug && !m.teamName);
+                      const hasCaps = (capSchemasMap[app.id]?.length ?? 0) > 0;
 
                       return (
                         <div
@@ -308,9 +369,8 @@ export function PermissionGroupsPage() {
                             enabled ? 'border-border-light bg-bg-secondary' : 'border-border bg-bg-tertiary/30 opacity-60',
                           )}
                         >
-                          {/* App header with enable toggle + role */}
+                          {/* App header — power toggle only (no global role) */}
                           <div className="px-4 py-3 flex items-center gap-3" style={{ borderLeft: `3px solid ${enabled ? color : 'transparent'}` }}>
-                            {/* Enable/disable toggle */}
                             <button
                               onClick={() => toggleApp(group.id, app.id)}
                               className={cn(
@@ -321,34 +381,16 @@ export function PermissionGroupsPage() {
                             >
                               <Power size={16} />
                             </button>
-
                             <div className="flex-1 min-w-0">
                               <span className="text-sm font-medium text-text-primary">{app.name}</span>
                               <span className="text-xs text-text-muted ml-2">{app.appType}</span>
                             </div>
-
-                            {/* Role selector (only when enabled) */}
-                            {enabled && (
-                              <div className="flex items-center gap-1.5">
-                                {['admin', 'user', 'viewer'].map(r => (
-                                  <button
-                                    key={r}
-                                    onClick={() => changeAppRole(group.id, app.id, r)}
-                                    className={cn(
-                                      'px-2.5 py-1 rounded text-xs font-medium transition-colors',
-                                      role === r
-                                        ? 'bg-accent/20 text-accent border border-accent/40'
-                                        : 'bg-bg-hover text-text-muted hover:text-text-primary border border-transparent',
-                                    )}
-                                  >
-                                    {r}
-                                  </button>
-                                ))}
-                              </div>
+                            {hasCaps && enabled && (
+                              <span title="Capabilities available"><Shield size={14} className="text-text-muted" /></span>
                             )}
                           </div>
 
-                          {/* Tenants + Teams (only when enabled and remote info loaded) */}
+                          {/* Tenants + Capabilities + Teams */}
                           {enabled && (
                             <div className="border-t border-border px-4 py-3">
                               {isLoading ? (
@@ -357,7 +399,7 @@ export function PermissionGroupsPage() {
                                 <p className="text-xs text-status-down">{t('groups.appConnectionError')}</p>
                               ) : (
                                 <div className="space-y-2">
-                                  {/* All tenants toggle */}
+                                  {/* All tenants toggle (global mode) */}
                                   {info.tenants.length > 0 && (
                                     <div className="flex items-center gap-2 mb-1">
                                       <button
@@ -372,15 +414,33 @@ export function PermissionGroupsPage() {
                                         {globalAccess && <Check size={12} />}
                                         {t('groups.allTenants')}
                                       </button>
-                                      <span className="text-xs text-text-muted">{t('groups.tenant')}</span>
+                                      {/* Global role + capabilities when in global mode */}
+                                      {globalAccess && (
+                                        <>
+                                          {renderRoleSelector(group.id, app.id, null, globalMapping?.appRole ?? 'user')}
+                                          {renderCapabilities(group.id, globalMapping?.id, app.id, globalMapping?.capabilities ?? [])}
+                                        </>
+                                      )}
                                     </div>
                                   )}
 
-                                  {/* Tenant accordion — each tenant expands to show its teams */}
+                                  {/* No tenants — show role + caps on the single mapping */}
+                                  {info.tenants.length === 0 && (
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      {renderRoleSelector(group.id, app.id, null, globalMapping?.appRole ?? 'user')}
+                                      {renderCapabilities(group.id, globalMapping?.id, app.id, globalMapping?.capabilities ?? [])}
+                                    </div>
+                                  )}
+
+                                  {/* Per-tenant accordion */}
                                   {info.tenants.map(tn => {
                                     const tenantActive = enabledTenants.has(tn.slug) || globalAccess;
                                     const tenantTeams = info.teams.filter(tm => tm.tenantSlug === tn.slug);
-                                    const tenantExpanded = expandedTenants.has(`${app.id}-${tn.slug}`);
+                                    const tenantKey = `${app.id}-${tn.slug}`;
+                                    const isExpanded = expandedTenants.has(tenantKey);
+                                    const baseMapping = getTenantBaseMapping(app.id, tn.slug);
+                                    const tenantRole = baseMapping?.appRole ?? (globalAccess ? (globalMapping?.appRole ?? 'user') : 'user');
+                                    const tenantCaps = baseMapping?.capabilities ?? (globalAccess ? (globalMapping?.capabilities ?? []) : []);
                                     const tenantEnabledTeams = tenantTeams.filter(tm => enabledTeams.has(tm.name));
 
                                     return (
@@ -388,9 +448,9 @@ export function PermissionGroupsPage() {
                                         'rounded-md border overflow-hidden',
                                         tenantActive ? 'border-border-light' : 'border-border opacity-50',
                                       )}>
-                                        {/* Tenant header row */}
-                                        <div className="flex items-center gap-2 px-3 py-2 bg-bg-tertiary/50">
-                                          {/* Tenant enable/disable checkbox */}
+                                        {/* Tenant header */}
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-bg-tertiary/50 flex-wrap">
+                                          {/* Checkbox */}
                                           <button
                                             onClick={() => toggleTenant(group.id, app.id, tn.slug)}
                                             className={cn(
@@ -403,18 +463,13 @@ export function PermissionGroupsPage() {
                                             {tenantActive && <Check size={12} />}
                                           </button>
 
-                                          {/* Tenant name — click to expand teams */}
+                                          {/* Name + expand toggle */}
                                           <button
-                                            onClick={() => setExpandedTenants(prev => {
-                                              const key = `${app.id}-${tn.slug}`;
-                                              const next = new Set(prev);
-                                              next.has(key) ? next.delete(key) : next.add(key);
-                                              return next;
-                                            })}
-                                            className="flex items-center gap-1.5 flex-1 text-left"
+                                            onClick={() => toggleTenantExpand(app.id, tn.slug)}
+                                            className="flex items-center gap-1 min-w-0"
                                           >
                                             {tenantTeams.length > 0 && (
-                                              tenantExpanded
+                                              isExpanded
                                                 ? <ChevronDown size={12} className="text-text-muted flex-shrink-0" />
                                                 : <ChevronRight size={12} className="text-text-muted flex-shrink-0" />
                                             )}
@@ -423,21 +478,29 @@ export function PermissionGroupsPage() {
                                             </span>
                                           </button>
 
-                                          {/* Team count badge */}
+                                          {/* Per-tenant role selector (only when not global) */}
+                                          {tenantActive && !globalAccess && (
+                                            renderRoleSelector(group.id, app.id, tn.slug, tenantRole)
+                                          )}
+
+                                          {/* Per-tenant capabilities (only when not global) */}
+                                          {tenantActive && !globalAccess && hasCaps && (
+                                            renderCapabilities(group.id, baseMapping?.id, app.id, tenantCaps)
+                                          )}
+
+                                          {/* Team count */}
                                           {tenantTeams.length > 0 && (
                                             <span className={cn(
-                                              'text-[10px] px-1.5 py-0.5 rounded',
-                                              tenantEnabledTeams.length > 0
-                                                ? 'bg-accent/15 text-accent'
-                                                : 'bg-bg-hover text-text-muted',
+                                              'text-[10px] px-1.5 py-0.5 rounded ml-auto',
+                                              tenantEnabledTeams.length > 0 ? 'bg-accent/15 text-accent' : 'bg-bg-hover text-text-muted',
                                             )}>
                                               {tenantEnabledTeams.length}/{tenantTeams.length} teams
                                             </span>
                                           )}
                                         </div>
 
-                                        {/* Expanded teams list */}
-                                        {tenantExpanded && tenantTeams.length > 0 && (
+                                        {/* Expanded: teams */}
+                                        {isExpanded && tenantTeams.length > 0 && (
                                           <div className="px-3 py-2 space-y-1 border-t border-border bg-bg-primary/30">
                                             {tenantEnabledTeams.length === 0 && (
                                               <div className="flex items-center gap-1.5 text-[10px] text-text-muted/70 py-1">
@@ -450,26 +513,20 @@ export function PermissionGroupsPage() {
                                               return (
                                                 <button
                                                   key={tm.name}
-                                                  onClick={() => toggleTeam(group.id, app.id, tm.name)}
+                                                  onClick={() => toggleTeam(group.id, app.id, tm.name, tn.slug)}
                                                   className={cn(
                                                     'w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors',
-                                                    teamActive
-                                                      ? 'bg-accent/10 text-accent'
-                                                      : 'text-text-muted hover:bg-bg-hover hover:text-text-primary',
+                                                    teamActive ? 'bg-accent/10 text-accent' : 'text-text-muted hover:bg-bg-hover hover:text-text-primary',
                                                   )}
                                                 >
                                                   <span className={cn(
                                                     'w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors',
-                                                    teamActive
-                                                      ? 'bg-accent/20 border-accent/40 text-accent'
-                                                      : 'bg-bg-hover border-border text-transparent',
+                                                    teamActive ? 'bg-accent/20 border-accent/40 text-accent' : 'bg-bg-hover border-border text-transparent',
                                                   )}>
                                                     {teamActive && <Check size={10} />}
                                                   </span>
                                                   <span className="flex-1 text-left">{tm.name}</span>
-                                                  {!teamActive && (
-                                                    <Lock size={10} className="text-text-muted/40" />
-                                                  )}
+                                                  {!teamActive && <Lock size={10} className="text-text-muted/40" />}
                                                 </button>
                                               );
                                             })}
@@ -479,7 +536,7 @@ export function PermissionGroupsPage() {
                                     );
                                   })}
 
-                                  {info.tenants.length === 0 && info.teams.length === 0 && (
+                                  {info.tenants.length === 0 && info.teams.length === 0 && !hasCaps && (
                                     <p className="text-xs text-text-muted italic">{t('groups.noMappings')}</p>
                                   )}
                                 </div>

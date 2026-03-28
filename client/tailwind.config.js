@@ -25,6 +25,7 @@ export default {
           DEFAULT: 'rgb(var(--c-accent)       / <alpha-value>)',
           hover:   'rgb(var(--c-accent-hover) / <alpha-value>)',
           dark:    'rgb(var(--c-accent-dark)  / <alpha-value>)',
+          text:    'rgb(var(--c-accent-text)  / <alpha-value>)',
         },
         primary: 'rgb(var(--c-primary) / <alpha-value>)',
         status: {

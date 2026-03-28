@@ -26,6 +26,7 @@
   --c-accent:                205 163 73;
   --c-accent-hover:          221 184 94;
   --c-accent-dark:           176 137 48;
+  --c-accent-text:           255 255 255;
   --c-primary:               205 163 73;
 }
 
@@ -52,6 +53,7 @@
   --c-accent:                237 208 137;
   --c-accent-hover:          245 224 170;
   --c-accent-dark:           205 163 73;
+  --c-accent-text:           20 18 14;
   --c-primary:               237 208 137;
 }
 

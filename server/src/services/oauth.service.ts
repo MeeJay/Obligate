@@ -104,6 +104,7 @@ export const oauthService = {
       role: resolved.role,
       tenants: resolved.tenants,
       teams: resolved.teams,
+      capabilities: resolved.capabilities,
       authSource: user.auth_source as 'local' | 'ldap',
       linkedLocalUserId: link?.remote_user_id ?? null,
       preferences: {

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { appService } from '../services/app.service';
 import { preferencesService } from '../services/preferences.service';
+import { capabilityService } from '../services/capability.service';
 import { logger } from '../utils/logger';
 import { db } from '../db';
 
@@ -65,6 +66,32 @@ apiRoutes.post('/sync-preference-schemas', requireAppBearer, async (req: any, re
   } catch (err) {
     logger.error(err, 'Failed to sync preference schemas');
     res.status(500).json({ success: false, error: 'Failed to sync schemas' });
+  }
+});
+
+/**
+ * POST /api/apps/sync-capability-schemas
+ * App registers its available capabilities (called on app startup).
+ */
+apiRoutes.post('/sync-capability-schemas', requireAppBearer, async (req: any, res) => {
+  try {
+    const schemas = req.body.schemas as Array<{
+      key: string; label: string; description?: string | null; sortOrder?: number;
+    }>;
+    if (!Array.isArray(schemas)) {
+      res.status(400).json({ success: false, error: 'Missing schemas array' });
+      return;
+    }
+    await capabilityService.syncSchemas(req.appId, schemas.map((s, i) => ({
+      key: s.key,
+      label: s.label,
+      description: s.description ?? null,
+      sortOrder: s.sortOrder ?? i,
+    })));
+    res.json({ success: true });
+  } catch (err) {
+    logger.error(err, 'Failed to sync capability schemas');
+    res.status(500).json({ success: false, error: 'Failed to sync capability schemas' });
   }
 });
 
