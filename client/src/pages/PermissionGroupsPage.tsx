@@ -11,6 +11,7 @@ interface RemoteAppInfo {
   roles: string[];
   teams: Array<{ id: number; name: string; tenantSlug: string; tenantName: string }>;
   tenants: Array<{ slug: string; name: string }>;
+  permissionSets?: Array<{ id: number; name: string; slug: string; capabilities: string[]; isDefault: boolean }>;
 }
 
 const APP_COLORS: Record<string, string> = {
@@ -256,9 +257,18 @@ export function PermissionGroupsPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
-  const renderRoleSelector = (groupId: number, appId: number, tenantSlug: string | null, currentRole: string) => (
-    <div className="flex items-center gap-1">
-      {['admin', 'user', 'viewer'].map(r => (
+  const renderRoleSelector = (groupId: number, appId: number, tenantSlug: string | null, currentRole: string) => {
+    const info = remoteInfoMap[appId];
+    const permSets = info?.permissionSets;
+    // Use permission sets from app if available, fallback to hardcoded roles
+    const roles = permSets?.length ? permSets.map(ps => ps.slug) : ['admin', 'user', 'viewer'];
+    const roleLabels = permSets?.length
+      ? Object.fromEntries(permSets.map(ps => [ps.slug, ps.name]))
+      : { admin: 'admin', user: 'user', viewer: 'viewer' };
+
+    return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {roles.map(r => (
         <button
           key={r}
           onClick={() => changeTenantRole(groupId, appId, tenantSlug, r)}
@@ -269,11 +279,12 @@ export function PermissionGroupsPage() {
               : 'bg-bg-hover text-text-muted hover:text-text-primary border border-transparent',
           )}
         >
-          {r}
+          {roleLabels[r] ?? r}
         </button>
       ))}
     </div>
-  );
+    );
+  };
 
   const renderCapabilities = (groupId: number, mappingId: number | undefined, appId: number, currentCaps: string[]) => {
     const schemas = capSchemasMap[appId];
