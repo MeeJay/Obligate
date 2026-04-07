@@ -6,12 +6,13 @@ import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import type { ConnectedApp, AppType } from '@obligate/shared';
 
-const APP_TYPES: AppType[] = ['obliview', 'obliguard', 'oblimap', 'obliance'];
+const APP_TYPES: AppType[] = ['obliview', 'obliguard', 'oblimap', 'obliance', 'oblihub'];
 const APP_COLORS: Record<AppType, string> = {
   obliview: 'text-blue-400',
   obliguard: 'text-cyan-400',
   oblimap: 'text-green-400',
   obliance: 'text-purple-400',
+  oblihub: 'text-gray-400',
 };
 
 export function AppsPage() {

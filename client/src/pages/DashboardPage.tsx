@@ -28,9 +28,10 @@ const APP_COLORS: Record<string, string> = {
   obliguard: '#FFA515',
   oblimap: '#8DC63F',
   obliance: '#C2001B',
+  oblihub: '#8B949E',
 };
 
-const APP_ORDER: string[] = ['obliview', 'obliguard', 'oblimap', 'obliance'];
+const APP_ORDER: string[] = ['obliview', 'obliguard', 'oblimap', 'obliance', 'oblihub'];
 
 export function DashboardPage() {
   const navigate = useNavigate();
