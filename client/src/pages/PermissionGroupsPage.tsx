@@ -20,6 +20,7 @@ const APP_COLORS: Record<string, string> = {
   oblimap: '#8DC63F',
   obliance: '#C2001B',
   oblihub: '#8B949E',
+  oblifield: '#AEEA00',
 };
 
 export function PermissionGroupsPage() {

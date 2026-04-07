@@ -20,7 +20,7 @@ export interface ObligateUser {
 
 // ── Connected Apps ───────────────────────────────────────────────────────────
 
-export type AppType = 'obliview' | 'obliguard' | 'oblimap' | 'obliance' | 'oblihub';
+export type AppType = 'obliview' | 'obliguard' | 'oblimap' | 'obliance' | 'oblihub' | 'oblifield';
 
 export interface ConnectedApp {
   id: number;
