@@ -108,3 +108,56 @@ oauthRoutes.post('/token/exchange', async (req, res) => {
     res.status(500).json({ success: false, error: 'Exchange failed' });
   }
 });
+
+/**
+ * POST /api/oauth/verify-totp
+ * Server-to-server TOTP verification. Used by connected apps to validate a
+ * fresh TOTP code for SSO-authenticated users when they perform a
+ * "sensitive" action that requires step-up authentication.
+ *
+ * Auth: Bearer <app_api_key>
+ * Body: { userId: number, code: string }
+ *   - userId: the Obligate user id (what apps store as foreign_id)
+ *   - code  : the 6-digit TOTP the user typed
+ * Response: { success: boolean, data: { valid: boolean } }
+ */
+oauthRoutes.post('/verify-totp', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      res.status(401).json({ success: false, error: 'Missing Bearer token' });
+      return;
+    }
+    const apiKey = authHeader.slice(7);
+    const app = await appService.getAppByApiKey(apiKey);
+    if (!app) {
+      res.status(401).json({ success: false, error: 'Invalid API key' });
+      return;
+    }
+
+    const { userId, code } = req.body as { userId?: number; code?: string };
+    if (!userId || !code) {
+      res.status(400).json({ success: false, error: 'Missing userId or code' });
+      return;
+    }
+
+    // Fetch the user's TOTP secret from Obligate's DB.
+    const { db } = await import('../db');
+    const { twoFactorService } = await import('../services/twoFactor.service');
+    const row = await db('users').where({ id: userId }).first('id', 'totp_enabled', 'totp_secret');
+    if (!row) {
+      res.status(404).json({ success: false, error: 'User not found' });
+      return;
+    }
+    if (!row.totp_enabled || !row.totp_secret) {
+      res.status(409).json({ success: false, error: 'TOTP not configured for this user' });
+      return;
+    }
+
+    const valid = twoFactorService.verifyTotp(row.totp_secret, String(code).trim());
+    res.json({ success: true, data: { valid } });
+  } catch (err) {
+    logger.error(err, 'verify-totp error');
+    res.status(500).json({ success: false, error: 'Verification failed' });
+  }
+});
