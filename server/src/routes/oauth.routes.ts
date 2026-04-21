@@ -121,6 +121,46 @@ oauthRoutes.post('/token/exchange', async (req, res) => {
  *   - code  : the 6-digit TOTP the user typed
  * Response: { success: boolean, data: { valid: boolean } }
  */
+// ── Per-user rate limiter for /verify-totp ──────────────────────────────────
+// Since a valid app Bearer key lets any connected app ask Obligate to
+// validate a TOTP code for ANY user id, this endpoint is a cross-app
+// brute-force primitive unless rate-limited. We keep a small in-process
+// sliding window per userId: after MAX_FAILS wrong codes within WINDOW_MS,
+// we return 429 for LOCKOUT_MS and refuse to call verifyTotp — the attempt
+// log records every 429 so SOC tooling can catch a distributed spray.
+const TFA_ATTEMPTS = new Map<number, { fails: number; firstAt: number; lockUntil: number }>();
+const TFA_MAX_FAILS  = 5;
+const TFA_WINDOW_MS  = 5 * 60 * 1000;   // 5 min
+const TFA_LOCKOUT_MS = 15 * 60 * 1000;  // 15 min
+
+function tfaGateCheck(userId: number): { allowed: true } | { allowed: false; retryAfterSec: number } {
+  const now = Date.now();
+  const rec = TFA_ATTEMPTS.get(userId);
+  if (!rec) return { allowed: true };
+  if (rec.lockUntil > now) {
+    return { allowed: false, retryAfterSec: Math.ceil((rec.lockUntil - now) / 1000) };
+  }
+  // Reset the window if it has elapsed without crossing the threshold.
+  if (now - rec.firstAt > TFA_WINDOW_MS) TFA_ATTEMPTS.delete(userId);
+  return { allowed: true };
+}
+
+function tfaRegisterFail(userId: number): void {
+  const now = Date.now();
+  const rec = TFA_ATTEMPTS.get(userId) ?? { fails: 0, firstAt: now, lockUntil: 0 };
+  rec.fails++;
+  if (rec.fails >= TFA_MAX_FAILS) {
+    rec.lockUntil = now + TFA_LOCKOUT_MS;
+    rec.fails = 0;              // reset counter, lock is now the gate
+    rec.firstAt = now;
+  }
+  TFA_ATTEMPTS.set(userId, rec);
+}
+
+function tfaRegisterSuccess(userId: number): void {
+  TFA_ATTEMPTS.delete(userId);
+}
+
 oauthRoutes.post('/verify-totp', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -141,7 +181,19 @@ oauthRoutes.post('/verify-totp', async (req, res) => {
       return;
     }
 
-    // Fetch the user's TOTP secret from Obligate's DB.
+    // ── Brute-force gate ──────────────────────────────────────────────
+    const gate = tfaGateCheck(userId);
+    if (!gate.allowed) {
+      logger.warn({ userId, appId: app.id, retryAfterSec: gate.retryAfterSec },
+        'verify-totp: user locked out after repeated failures');
+      res.setHeader('Retry-After', String(gate.retryAfterSec));
+      res.status(429).json({
+        success: false,
+        error: 'Too many failed 2FA attempts — try again later',
+      });
+      return;
+    }
+
     const { db } = await import('../db');
     const { twoFactorService } = await import('../services/twoFactor.service');
     const row = await db('users').where({ id: userId }).first('id', 'totp_enabled', 'totp_secret');
@@ -155,6 +207,13 @@ oauthRoutes.post('/verify-totp', async (req, res) => {
     }
 
     const valid = twoFactorService.verifyTotp(row.totp_secret, String(code).trim());
+    if (valid) {
+      tfaRegisterSuccess(userId);
+    } else {
+      tfaRegisterFail(userId);
+      logger.info({ userId, appId: app.id },
+        'verify-totp: invalid code (brute-force counter incremented)');
+    }
     res.json({ success: true, data: { valid } });
   } catch (err) {
     logger.error(err, 'verify-totp error');
