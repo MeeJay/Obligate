@@ -1,100 +1,191 @@
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LayoutDashboard, AppWindow, Users, ShieldCheck, FolderTree, UserCircle, Settings } from 'lucide-react';
+import {
+  LayoutDashboard, AppWindow, Users, ShieldCheck, FolderTree,
+  UserCircle, Settings, ChevronsLeft, ChevronsRight, LogOut,
+} from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuthStore } from '../../store/authStore';
 
 interface SidebarProps {
-  open: boolean;
-  onClose: () => void;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+  onNavigate: () => void;
 }
 
-export function Sidebar({ open, onClose }: SidebarProps) {
+interface NavItem {
+  path: string;
+  icon: React.ComponentType<{ size?: number | string; className?: string }>;
+  label: string;
+  admin?: boolean;
+}
+
+export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarProps) {
   const location = useLocation();
-  const navigate = useNavigate();
   const { t } = useTranslation();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const isAdmin = user?.role === 'admin';
 
-  const navItems = [
-    { path: '/',              icon: LayoutDashboard, label: t('sidebar.myApps') },
-    { path: '/apps',          icon: AppWindow,       label: t('sidebar.connectedApps'),     admin: true },
-    { path: '/users',         icon: Users,           label: t('sidebar.users'),              admin: true },
-    { path: '/groups',        icon: ShieldCheck,     label: t('sidebar.permissionGroups'),  admin: true },
-    { path: '/directories',   icon: FolderTree,      label: t('sidebar.directories'),        admin: true },
-    { path: '/settings',      icon: Settings,        label: t('sidebar.settings'),           admin: true },
+  const mainItems: NavItem[] = [
+    { path: '/',         icon: LayoutDashboard, label: t('sidebar.myApps') },
+    { path: '/account',  icon: UserCircle,      label: t('sidebar.myAccount') },
   ];
 
-  const bottomItems = [
-    { path: '/account',       icon: UserCircle,      label: t('sidebar.myAccount') },
+  const adminItems: NavItem[] = [
+    { path: '/apps',        icon: AppWindow,   label: t('sidebar.connectedApps'),    admin: true },
+    { path: '/users',       icon: Users,       label: t('sidebar.users'),            admin: true },
+    { path: '/groups',      icon: ShieldCheck, label: t('sidebar.permissionGroups'), admin: true },
+    { path: '/directories', icon: FolderTree,  label: t('sidebar.directories'),      admin: true },
+    { path: '/settings',    icon: Settings,    label: t('sidebar.settings'),         admin: true },
   ];
 
-  const handleNav = (path: string) => {
-    navigate(path);
-    onClose();
-  };
+  const isActive = (path: string) =>
+    location.pathname === path || (path !== '/' && location.pathname.startsWith(path + '/'));
+
+  const username = user?.username ?? '';
+  const displayed = username.startsWith('og_') ? username.slice(3) : username;
+  const display = user?.displayName || displayed;
 
   return (
-    <>
-      {open && (
-        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onClose} />
-      )}
+    <div className="flex h-full w-full flex-col">
+      {/* Head — collapse toggle only (logo lives in topbar). Spec §12. */}
+      <div className="flex h-9 shrink-0 items-center justify-end px-3 pt-2">
+        <button
+          onClick={onToggleCollapsed}
+          title={collapsed ? t('sidebar.expand', 'Expand') : t('sidebar.collapse', 'Collapse')}
+          className="rounded p-1.5 text-text-muted transition-colors hover:bg-bg-hover hover:text-text-primary"
+        >
+          {collapsed ? <ChevronsRight size={15} /> : <ChevronsLeft size={15} />}
+        </button>
+      </div>
 
-      <aside className={cn(
-        'fixed top-0 left-0 bottom-0 z-50 w-56 bg-bg-secondary border-r border-border',
-        'flex flex-col transition-transform duration-200',
-        'lg:static lg:translate-x-0 lg:z-auto',
-        open ? 'translate-x-0' : '-translate-x-full',
-      )}>
-        <div className="h-14 flex-shrink-0 flex items-center px-4 border-b border-border">
-          <Link to="/" className="flex items-center" onClick={onClose}>
-            <img src="/logo.svg" alt="Obligate" style={{ height: '36px', width: 'auto' }} />
+      {/* Main nav */}
+      <nav className={cn('flex-1 overflow-y-auto px-2 pt-2 space-y-1', collapsed && 'px-2')}>
+        <NavSection collapsed={collapsed} items={mainItems} isActive={isActive} onNavigate={onNavigate} />
+
+        {isAdmin && (
+          <>
+            {!collapsed && (
+              <div className="mt-4 px-2 pb-1.5 pt-1 text-[11px] font-mono font-medium uppercase tracking-[0.14em] text-text-muted">
+                {t('sidebar.administration', 'Administration')}
+              </div>
+            )}
+            {collapsed && (
+              <div className="mx-2 my-3 h-px bg-border" />
+            )}
+            <NavSection collapsed={collapsed} items={adminItems} isActive={isActive} onNavigate={onNavigate} />
+          </>
+        )}
+      </nav>
+
+      {/* Footer — user + logout */}
+      <div className="shrink-0 border-t border-border p-2 space-y-1">
+        {!collapsed ? (
+          <Link
+            to="/account"
+            onClick={onNavigate}
+            className={cn(
+              'flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors',
+              isActive('/account')
+                ? 'bg-bg-active text-text-primary'
+                : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
+            )}
+          >
+            <div
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold text-white"
+              style={{ background: 'linear-gradient(135deg, rgba(45,78,201,0.7), rgba(90,120,232,0.45))' }}
+            >
+              {(display?.[0] ?? '?').toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13px] font-medium text-text-primary">{display}</div>
+              <div className="truncate font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                {displayed} · {user?.role}
+              </div>
+            </div>
           </Link>
-        </div>
+        ) : (
+          <Link
+            to="/account"
+            title={display}
+            onClick={onNavigate}
+            className={cn(
+              'flex h-10 w-full items-center justify-center rounded-md transition-colors',
+              isActive('/account')
+                ? 'bg-bg-active text-text-primary'
+                : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
+            )}
+          >
+            <UserCircle size={18} />
+          </Link>
+        )}
 
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-          {navItems.map(item => {
-            if (item.admin && !isAdmin) return null;
-            const active = location.pathname === item.path;
-            return (
-              <button
-                key={item.path}
-                onClick={() => handleNav(item.path)}
-                className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
-                  active
-                    ? 'bg-bg-active text-text-primary'
-                    : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
-                )}
-              >
-                <item.icon size={18} />
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
+        <button
+          onClick={logout}
+          title={t('common.logout')}
+          className={cn(
+            'flex w-full items-center gap-3 rounded-md px-3 py-2 text-[13px] text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary',
+            collapsed && 'h-10 justify-center px-0 py-0',
+          )}
+        >
+          <LogOut size={collapsed ? 18 : 16} />
+          {!collapsed && <span>{t('common.logout')}</span>}
+        </button>
+      </div>
+    </div>
+  );
+}
 
-        <div className="border-t border-border py-3 px-2 space-y-0.5">
-          {bottomItems.map(item => {
-            const active = location.pathname === item.path;
-            return (
-              <button
-                key={item.path}
-                onClick={() => handleNav(item.path)}
-                className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
-                  active
-                    ? 'bg-bg-active text-text-primary'
-                    : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
-                )}
-              >
-                <item.icon size={18} />
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-      </aside>
+function NavSection({
+  items, collapsed, isActive, onNavigate,
+}: {
+  items: NavItem[];
+  collapsed: boolean;
+  isActive: (path: string) => boolean;
+  onNavigate: () => void;
+}) {
+  return (
+    <>
+      {items.map(item => {
+        const active = isActive(item.path);
+        const Icon = item.icon;
+        if (collapsed) {
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              title={item.label}
+              onClick={onNavigate}
+              className={cn(
+                'flex h-10 w-full items-center justify-center rounded-md transition-colors',
+                active
+                  ? 'bg-accent/12 text-accent'
+                  : 'text-text-muted hover:bg-bg-hover hover:text-text-primary',
+              )}
+              style={active ? { backgroundColor: 'rgb(var(--c-accent) / 0.12)' } : undefined}
+            >
+              <Icon size={18} />
+            </Link>
+          );
+        }
+        return (
+          <Link
+            key={item.path}
+            to={item.path}
+            onClick={onNavigate}
+            className={cn(
+              'flex items-center gap-3 rounded-md px-3 py-2 text-[13px] transition-colors',
+              active
+                ? 'text-accent'
+                : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
+            )}
+            style={active ? { backgroundColor: 'rgb(var(--c-accent) / 0.12)' } : undefined}
+          >
+            <Icon size={18} />
+            <span className="flex-1">{item.label}</span>
+          </Link>
+        );
+      })}
     </>
   );
 }
