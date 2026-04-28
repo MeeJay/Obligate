@@ -108,7 +108,7 @@ authRoutes.post('/enrollment', requireAuth, async (req, res) => {
 
     // Update common preferences
     await preferencesService.updateCommonPreferences(userId, {
-      preferredTheme: preferredTheme ?? 'modern',
+      preferredTheme: preferredTheme ?? 'obli-operator',
       toastEnabled: toastEnabled ?? true,
       toastPosition: toastPosition ?? 'bottom-right',
       preferredLanguage: preferredLanguage ?? 'en',

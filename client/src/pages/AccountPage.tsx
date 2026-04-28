@@ -94,7 +94,7 @@ export function AccountPage() {
       const { data } = await apiClient.put('/account/preferences/common', patch);
       if (data.success) {
         setCommon(data.data);
-        if (patch.preferredTheme) applyTheme(patch.preferredTheme as 'modern' | 'neon');
+        if (patch.preferredTheme) applyTheme(patch.preferredTheme);
       }
     } catch { /* ignore */ }
   };

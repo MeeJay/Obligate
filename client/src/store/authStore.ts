@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           requires2faSetup: data.data.requires2faSetup ?? false,
           smtpConfigured: data.data.smtpConfigured ?? false,
         });
-        if (user.preferredTheme) applyTheme(user.preferredTheme as 'modern' | 'neon');
+        if (user.preferredTheme) applyTheme(user.preferredTheme);
         return true;
       }
     } catch { /* ignore */ }

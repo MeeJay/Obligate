@@ -79,7 +79,7 @@ export function EnrollmentPage() {
     preferredLanguage: user?.preferredLanguage ?? 'en',
     displayName: user?.displayName ?? '',
     email: user?.email ?? '',
-    preferredTheme: 'modern',
+    preferredTheme: 'obli-operator',
     toastEnabled: true,
     toastPosition: 'bottom-right' as 'bottom-right' | 'top-center',
   });
@@ -280,7 +280,7 @@ export function EnrollmentPage() {
               <p className="text-sm text-text-muted mb-5">{t('enrollment.appearanceHelp')}</p>
               <ThemePicker
                 value={data.preferredTheme}
-                onChange={theme => { setData(d => ({ ...d, preferredTheme: theme })); applyTheme(theme as 'modern' | 'neon'); }}
+                onChange={theme => { setData(d => ({ ...d, preferredTheme: theme })); applyTheme(theme); }}
               />
             </div>
           )}

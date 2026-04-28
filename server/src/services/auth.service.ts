@@ -36,7 +36,7 @@ function rowToUser(row: UserRow): ObligateUser {
     ldapDn: row.ldap_dn,
     totpEnabled: row.totp_enabled,
     preferredLanguage: row.preferred_language,
-    preferredTheme: row.preferred_theme ?? 'modern',
+    preferredTheme: row.preferred_theme ?? 'obli-operator',
     enrollmentVersion: row.enrollment_version ?? 0,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),

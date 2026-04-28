@@ -2,11 +2,97 @@ import { Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../utils/cn';
 
-type AppTheme = 'modern' | 'neon';
+type AppTheme = 'modern' | 'neon' | 'obli-operator';
 
 interface ThemePickerProps {
   value: string;
   onChange: (theme: string) => void;
+}
+
+function ObliOperatorPreviewSvg() {
+  return (
+    <svg viewBox="0 0 280 170" xmlns="http://www.w3.org/2000/svg" className="w-full rounded-md">
+      {/* Page bg #0b0d1a */}
+      <rect width="280" height="170" fill="#0b0d1a" rx="6" />
+      {/* Sidebar #0f1220 */}
+      <rect x="0" y="0" width="60" height="170" fill="#0f1220" rx="6" />
+      {/* Topbar #0f1220 */}
+      <rect x="60" y="0" width="220" height="22" fill="#0f1220" />
+      {/* App pills (5) */}
+      {[0, 1, 2, 3, 4].map((i) => {
+        const accents = ['#2bc4bd', '#f5a623', '#1edd8a', '#e03a3a', '#2d4ec9'];
+        const x = 70 + i * 28;
+        const isActive = i === 3;
+        return (
+          <g key={i}>
+            <rect x={x} y="7" width="24" height="9" rx="4" fill={isActive ? '#e03a3a' : 'transparent'} opacity={isActive ? 0.18 : 1} />
+            <circle cx={x + 4} cy="11.5" r="1.6" fill={accents[i]} />
+          </g>
+        );
+      })}
+      {/* Sidebar logo dot — red accent */}
+      <rect x="10" y="10" width="14" height="14" rx="3" fill="#e03a3a" />
+      <rect x="28" y="13" width="22" height="4" rx="1.5" fill="#e8ecf5" opacity="0.95" />
+      {/* Sidebar primary action button */}
+      <rect x="6" y="32" width="48" height="14" rx="4" fill="#e03a3a" />
+      <rect x="14" y="37" width="32" height="4" rx="1.5" fill="#fff" opacity="0.95" />
+      {/* Sidebar nav items */}
+      {[52, 68, 84, 100].map((y, i) => (
+        <g key={y}>
+          <rect x="4" y={y} width="52" height="13" rx="3" fill={i === 0 ? 'rgba(224,58,58,0.12)' : 'transparent'} />
+          <rect x="10" y={y + 4} width="6" height="6" rx="1.5" fill={i === 0 ? '#ff6868' : '#4b5273'} />
+          <rect x="20" y={y + 5} width={i === 0 ? 26 : 22} height="3.5" rx="1.5" fill={i === 0 ? '#ff6868' : '#8c93b6'} />
+        </g>
+      ))}
+      {/* Hero KPI strip — 5 cards (no borders, shadow-only) */}
+      {[0, 1, 2, 3, 4].map((i) => {
+        const x = 68 + i * 41;
+        const widths = [55, 36, 36, 36, 36];
+        const w = widths[i];
+        const isFeatured = i === 0;
+        return (
+          <g key={`kpi-${i}`}>
+            <rect x={x} y="32" width={w} height="36" rx="5" fill="#131728" />
+            <rect x={x + 4} y="38" width="14" height="3" rx="1" fill="#8c93b6" opacity="0.7" />
+            {/* JetBrains-mono-style numerics */}
+            <rect x={x + 4} y="46" width={isFeatured ? 18 : 14} height={isFeatured ? 9 : 7} rx="1" fill="#e8ecf5" />
+            {isFeatured && (
+              <path d={`M ${x + 4} 64 L ${x + 12} 60 L ${x + 20} 62 L ${x + 28} 58 L ${x + 36} 60 L ${x + 44} 56 L ${x + 51} 59`} stroke="#e03a3a" strokeWidth="1.2" fill="none" />
+            )}
+            {!isFeatured && (
+              <circle cx={x + w - 6} cy="42" r="1.8" fill={['#1edd8a', '#107050', '#f5a623', '#4f7bff'][i - 1]} />
+            )}
+          </g>
+        );
+      })}
+      {/* Two-column row: chart (left, 2fr) + donut (right, 1fr) */}
+      <rect x="68" y="74" width="135" height="48" rx="5" fill="#131728" />
+      <path d="M 76 110 L 86 96 L 96 102 L 106 88 L 116 95 L 126 84 L 136 92 L 146 80 L 156 88 L 166 76 L 176 84 L 186 78 L 196 86" stroke="#e03a3a" strokeWidth="1.4" fill="none" />
+      <path d="M 76 110 L 86 96 L 96 102 L 106 88 L 116 95 L 126 84 L 136 92 L 146 80 L 156 88 L 166 76 L 176 84 L 186 78 L 196 86 L 196 118 L 76 118 Z" fill="#e03a3a" opacity="0.12" />
+      <rect x="207" y="74" width="65" height="48" rx="5" fill="#131728" />
+      <circle cx="225" cy="98" r="13" fill="none" stroke="#1d2238" strokeWidth="3" />
+      <circle cx="225" cy="98" r="13" fill="none" stroke="#e03a3a" strokeWidth="3" strokeDasharray="50 81" transform="rotate(-90 225 98)" />
+      {[105, 111].map((y, i) => (
+        <g key={y}>
+          <rect x="244" y={y - 3} width="3" height="3" rx="0.5" fill={['#e03a3a', '#1edd8a'][i]} />
+          <rect x="250" y={y - 2} width="20" height="2" rx="1" fill="#8c93b6" />
+        </g>
+      ))}
+      {/* Bottom status row — 4 small cards */}
+      {[0, 1, 2, 3].map((i) => {
+        const x = 68 + i * 51;
+        return (
+          <g key={`s-${i}`}>
+            <rect x={x} y="128" width="46" height="32" rx="4" fill="#131728" />
+            <rect x={x + 4} y="134" width="6" height="6" rx="1.5" fill="#e03a3a" opacity="0.9" />
+            <rect x={x + 13} y="135" width="22" height="3" rx="1" fill="#e8ecf5" opacity="0.9" />
+            <rect x={x + 13} y="141" width="14" height="2.5" rx="1" fill="#8c93b6" />
+            <rect x={x + 4} y="150" width="38" height="6" rx="1.5" fill="#1d2238" />
+          </g>
+        );
+      })}
+    </svg>
+  );
 }
 
 function ModernPreviewSvg() {
@@ -103,15 +189,16 @@ function NeonPreviewSvg() {
 }
 
 const THEMES: { id: AppTheme; labelKey: string; Preview: () => JSX.Element }[] = [
-  { id: 'modern', labelKey: 'account.modernUi', Preview: ModernPreviewSvg },
-  { id: 'neon',   labelKey: 'account.neonUi',   Preview: NeonPreviewSvg },
+  { id: 'obli-operator', labelKey: 'account.obliOperator', Preview: ObliOperatorPreviewSvg },
+  { id: 'modern',        labelKey: 'account.modernUi',     Preview: ModernPreviewSvg },
+  { id: 'neon',          labelKey: 'account.neonUi',       Preview: NeonPreviewSvg },
 ];
 
 export function ThemePicker({ value, onChange }: ThemePickerProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {THEMES.map(({ id, labelKey, Preview }) => {
         const selected = value === id;
         return (

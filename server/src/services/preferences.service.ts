@@ -31,7 +31,7 @@ export const preferencesService = {
       } | undefined;
 
     return {
-      preferredTheme: row?.preferred_theme ?? 'modern',
+      preferredTheme: row?.preferred_theme ?? 'obli-operator',
       toastEnabled: row?.toast_enabled ?? true,
       toastPosition: row?.toast_position ?? 'bottom-right',
       profilePhotoUrl: row?.profile_photo_url ?? null,
