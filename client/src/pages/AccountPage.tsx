@@ -73,7 +73,7 @@ function AlertPreviewSvg({ position }: { position: 'bottom-right' | 'top-center'
 
 export function AccountPage() {
   const { t } = useTranslation();
-  const { user } = useAuthStore();
+  const { user, checkSession } = useAuthStore();
   const [apps, setApps] = useState<AppStatus[]>([]);
   const [common, setCommon] = useState<CommonPreferences | null>(null);
   const [appSections, setAppSections] = useState<AppSection[]>([]);
@@ -95,6 +95,8 @@ export function AccountPage() {
       if (data.success) {
         setCommon(data.data);
         if (patch.preferredTheme) applyTheme(patch.preferredTheme);
+        // Refresh authStore so Header/Sidebar pick up the new photo / display name
+        if (patch.profilePhotoUrl !== undefined) await checkSession();
       }
     } catch { /* ignore */ }
   };

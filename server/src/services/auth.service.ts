@@ -18,6 +18,7 @@ interface UserRow {
   totp_secret: string | null;
   preferred_language: string;
   preferred_theme: string;
+  profile_photo_url: string | null;
   enrollment_version: number;
   created_at: Date;
   updated_at: Date;
@@ -37,6 +38,7 @@ function rowToUser(row: UserRow): ObligateUser {
     totpEnabled: row.totp_enabled,
     preferredLanguage: row.preferred_language,
     preferredTheme: row.preferred_theme ?? 'obli-operator',
+    profilePhotoUrl: row.profile_photo_url ?? null,
     enrollmentVersion: row.enrollment_version ?? 0,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),

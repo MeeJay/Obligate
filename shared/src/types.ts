@@ -13,6 +13,7 @@ export interface ObligateUser {
   totpEnabled: boolean;
   preferredLanguage: string;
   preferredTheme: string;
+  profilePhotoUrl: string | null;
   enrollmentVersion: number;
   createdAt: string;
   updatedAt: string;

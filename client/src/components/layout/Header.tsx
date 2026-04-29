@@ -141,12 +141,20 @@ export function Header({ onToggleMobile }: HeaderProps) {
               to="/account"
               className="flex items-center gap-2 rounded-full bg-bg-hover py-1 pl-1.5 pr-3 transition-colors hover:bg-bg-active"
             >
-              <div
-                className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-                style={{ background: 'linear-gradient(135deg, rgba(45,78,201,0.7), rgba(90,120,232,0.45))' }}
-              >
-                {(display?.[0] ?? '?').toUpperCase()}
-              </div>
+              {user.profilePhotoUrl ? (
+                <img
+                  src={user.profilePhotoUrl}
+                  alt={display}
+                  className="h-7 w-7 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold text-white"
+                  style={{ background: 'linear-gradient(135deg, rgba(45,78,201,0.7), rgba(90,120,232,0.45))' }}
+                >
+                  {(display?.[0] ?? '?').toUpperCase()}
+                </div>
+              )}
               <span className="hidden text-[13px] font-medium text-text-primary sm:inline">{display}</span>
               {user.role === 'admin' && (
                 <span className="hidden border-l border-border-light pl-2 font-mono text-[10px] uppercase tracking-wider text-accent sm:inline">

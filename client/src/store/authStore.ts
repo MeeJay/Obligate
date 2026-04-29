@@ -12,6 +12,7 @@ interface User {
   authSource: string;
   preferredLanguage: string;
   preferredTheme: string;
+  profilePhotoUrl: string | null;
   enrollmentVersion: number;
 }
 

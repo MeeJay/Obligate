@@ -91,12 +91,20 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarPro
                 : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
             )}
           >
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold text-white"
-              style={{ background: 'linear-gradient(135deg, rgba(45,78,201,0.7), rgba(90,120,232,0.45))' }}
-            >
-              {(display?.[0] ?? '?').toUpperCase()}
-            </div>
+            {user?.profilePhotoUrl ? (
+              <img
+                src={user.profilePhotoUrl}
+                alt={display}
+                className="h-8 w-8 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <div
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold text-white"
+                style={{ background: 'linear-gradient(135deg, rgba(45,78,201,0.7), rgba(90,120,232,0.45))' }}
+              >
+                {(display?.[0] ?? '?').toUpperCase()}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <div className="truncate text-[13px] font-medium text-text-primary">{display}</div>
               <div className="truncate font-mono text-[10px] uppercase tracking-wider text-text-muted">
@@ -116,7 +124,15 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarPro
                 : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
             )}
           >
-            <UserCircle size={18} />
+            {user?.profilePhotoUrl ? (
+              <img
+                src={user.profilePhotoUrl}
+                alt={display}
+                className="h-6 w-6 rounded-full object-cover"
+              />
+            ) : (
+              <UserCircle size={18} />
+            )}
           </Link>
         )}
 
