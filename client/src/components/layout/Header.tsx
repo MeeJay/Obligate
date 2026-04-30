@@ -27,8 +27,9 @@ const APP_ORDER: AppEntry[] = [
   { type: 'oblihub',   label: 'Oblihub',   color: '#2d4ec9' },
 ];
 
-// Obligate IS Oblihub — the SSO gateway is the "hub" pill.
-const CURRENT_APP: AppType = 'oblihub';
+// Obligate is the SSO gateway, not one of the 5 apps in the switcher — no
+// pill is "current" here. Oblihub follows the same reachability rule as any
+// other app: greyed out unless the user has a connected/enabled link to it.
 
 interface ConnectedApp {
   appId: number;
@@ -52,11 +53,10 @@ export function Header({ onToggleMobile }: HeaderProps) {
     }).catch(() => {});
   }, []);
 
-  const reachable = new Set<string>([CURRENT_APP]);
+  const reachable = new Set<string>();
   for (const a of apps) reachable.add(a.appType);
 
   const goApp = (app: AppEntry) => {
-    if (app.type === CURRENT_APP) return;
     const target = apps.find(c => c.appType === app.type);
     if (target) window.location.href = `${target.baseUrl}/auth/sso-redirect`;
   };
@@ -92,33 +92,23 @@ export function Header({ onToggleMobile }: HeaderProps) {
       {/* App switcher pills */}
       <nav className="ml-2 hidden items-center gap-1 md:flex">
         {APP_ORDER.map((app) => {
-          const isCurrent = app.type === CURRENT_APP;
           const isReachable = reachable.has(app.type);
-          const dimmed = !isReachable && !isCurrent;
           return (
             <button
               key={app.type}
               type="button"
               onClick={() => goApp(app)}
-              disabled={dimmed}
+              disabled={!isReachable}
               className={cn(
                 'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors',
-                isCurrent
-                  ? 'text-[color:var(--app-current)]'
-                  : 'text-text-muted hover:bg-bg-hover hover:text-text-primary',
-                dimmed && 'opacity-40 cursor-not-allowed hover:bg-transparent hover:text-text-muted',
+                'text-text-muted hover:bg-bg-hover hover:text-text-primary',
+                !isReachable && 'opacity-40 cursor-not-allowed hover:bg-transparent hover:text-text-muted',
               )}
-              style={isCurrent
-                ? ({ '--app-current': app.color, backgroundColor: hexA(app.color, 0.12) } as React.CSSProperties)
-                : undefined}
               title={app.label}
             >
               <span
                 className="h-1.5 w-1.5 shrink-0 rounded-full"
-                style={{
-                  background: app.color,
-                  boxShadow: isCurrent ? `0 0 8px ${app.color}` : undefined,
-                }}
+                style={{ background: app.color }}
               />
               {app.label}
             </button>
@@ -174,14 +164,4 @@ export function Header({ onToggleMobile }: HeaderProps) {
       </div>
     </header>
   );
-}
-
-// Convert a hex colour to rgba() with the given alpha.
-function hexA(hex: string, alpha: number): string {
-  const m = hex.replace('#', '');
-  const n = m.length === 3 ? m.split('').map(c => c + c).join('') : m;
-  const r = parseInt(n.slice(0, 2), 16);
-  const g = parseInt(n.slice(2, 4), 16);
-  const b = parseInt(n.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
