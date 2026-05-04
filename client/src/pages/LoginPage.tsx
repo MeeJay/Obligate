@@ -82,8 +82,14 @@ export function LoginPage() {
 
         <div className="bg-bg-secondary border border-border rounded-lg p-6">
           {step === 'credentials' ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" name="login" autoComplete="on">
               <Input
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username"
+                spellCheck={false}
+                autoCapitalize="none"
                 label={t('login.username')}
                 value={username}
                 onChange={e => setUsername(e.target.value)}
@@ -92,8 +98,11 @@ export function LoginPage() {
                 required
               />
               <Input
-                label={t('login.password')}
+                id="current-password"
+                name="password"
                 type="password"
+                autoComplete="current-password"
+                label={t('login.password')}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder={t('login.password')}
@@ -109,15 +118,18 @@ export function LoginPage() {
               </Button>
             </form>
           ) : (
-            <form onSubmit={handleMfaSubmit} className="space-y-4">
+            <form onSubmit={handleMfaSubmit} className="space-y-4" name="mfa" autoComplete="on">
               <div>
                 <p className="text-sm font-medium text-text-primary mb-1">{t('login.twoFactor')}</p>
                 <p className="text-xs text-text-muted">{t('login.twoFactorDescription')}</p>
               </div>
               <Input
+                id="otp"
+                name="otp"
                 label={t('login.authCode')}
                 type="text"
                 inputMode="numeric"
+                autoComplete="one-time-code"
                 value={mfaCode}
                 onChange={e => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="000000"
