@@ -122,4 +122,39 @@ export const appService = {
       color: r.color,
     }));
   },
+
+  /**
+   * Get active apps list filtered to those the given user has access to
+   * via at least one `permission_group_app_mappings` row. Platform admins
+   * (users.role = 'admin') get the full unfiltered list — their access is
+   * implicit and not materialised as explicit mappings.
+   *
+   * Used by app servers to populate the topbar app switcher so apps the
+   * user has no permission on are hidden entirely instead of being shown
+   * as inert buttons.
+   */
+  async getConnectedAppsForUser(userId: number): Promise<Array<{ appType: string; name: string; baseUrl: string; icon: string | null; color: string | null }>> {
+    const user = await db('users').where({ id: userId }).select('role').first() as { role: string } | undefined;
+    if (!user) return [];
+    if (user.role === 'admin') return this.getConnectedAppsPublic();
+
+    const rows = await db('connected_apps as ca')
+      .where('ca.is_active', true)
+      .whereIn('ca.id', function () {
+        this.select('pgam.app_id')
+          .from('permission_group_app_mappings as pgam')
+          .join('user_permission_groups as upg', 'upg.group_id', 'pgam.group_id')
+          .where('upg.user_id', userId);
+      })
+      .select('ca.app_type', 'ca.name', 'ca.base_url', 'ca.icon', 'ca.color') as Array<{
+        app_type: string; name: string; base_url: string; icon: string | null; color: string | null;
+      }>;
+    return rows.map(r => ({
+      appType: r.app_type,
+      name: r.name,
+      baseUrl: r.base_url,
+      icon: r.icon,
+      color: r.color,
+    }));
+  },
 };

@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
-import { cn } from '../../utils/cn';
 import apiClient from '../../api/client';
 
 interface HeaderProps {
@@ -89,31 +88,23 @@ export function Header({ onToggleMobile }: HeaderProps) {
         <img src="/logo.svg" alt="Obligate" className="h-8 w-auto max-w-[160px] object-contain" />
       </Link>
 
-      {/* App switcher pills */}
+      {/* App switcher pills — only apps the user has access to are shown. */}
       <nav className="ml-2 hidden items-center gap-1 md:flex">
-        {APP_ORDER.map((app) => {
-          const isReachable = reachable.has(app.type);
-          return (
-            <button
-              key={app.type}
-              type="button"
-              onClick={() => goApp(app)}
-              disabled={!isReachable}
-              className={cn(
-                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors',
-                'text-text-muted hover:bg-bg-hover hover:text-text-primary',
-                !isReachable && 'opacity-40 cursor-not-allowed hover:bg-transparent hover:text-text-muted',
-              )}
-              title={app.label}
-            >
-              <span
-                className="h-1.5 w-1.5 shrink-0 rounded-full"
-                style={{ background: app.color }}
-              />
-              {app.label}
-            </button>
-          );
-        })}
+        {APP_ORDER.filter(app => reachable.has(app.type)).map((app) => (
+          <button
+            key={app.type}
+            type="button"
+            onClick={() => goApp(app)}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium text-text-muted transition-colors hover:bg-bg-hover hover:text-text-primary"
+            title={app.label}
+          >
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ background: app.color }}
+            />
+            {app.label}
+          </button>
+        ))}
       </nav>
 
       {/* Right cluster */}

@@ -28,11 +28,21 @@ async function requireAppBearer(req: any, res: any, next: any) {
 
 /**
  * GET /api/apps/connected
- * Returns all active connected apps (for cross-app navigation buttons).
+ * Returns active connected apps (for cross-app navigation buttons).
+ *
+ * If the optional `?userId=<obligateUserId>` query param is supplied, the
+ * list is filtered to only the apps that user has access to via at least
+ * one permission_group_app_mapping (platform admins get the full list).
+ * Without the param, returns every active app — preserves the legacy
+ * behaviour for callers that haven't been updated yet.
  */
-apiRoutes.get('/connected', requireAppBearer, async (_req, res) => {
+apiRoutes.get('/connected', requireAppBearer, async (req, res) => {
   try {
-    const apps = await appService.getConnectedAppsPublic();
+    const userIdRaw = req.query.userId;
+    const userId = typeof userIdRaw === 'string' ? parseInt(userIdRaw, 10) : NaN;
+    const apps = Number.isFinite(userId) && userId > 0
+      ? await appService.getConnectedAppsForUser(userId)
+      : await appService.getConnectedAppsPublic();
     res.json({ success: true, data: apps });
   } catch (err) {
     logger.error(err, 'Failed to list connected apps');
