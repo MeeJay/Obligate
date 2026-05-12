@@ -219,15 +219,26 @@ export function PermissionGroupsPage() {
     await reloadMappings(groupId);
   };
 
-  const toggleTeam = async (groupId: number, appId: number, teamName: string, tenantSlug: string) => {
-    const existing = getMappingsForApp(appId).find(m => m.teamName === teamName && m.tenantSlug === tenantSlug);
-    if (existing) {
-      await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${existing.id}`);
+  // Teams are matched cross-tenant by name: enabling one mapping enables every
+  // tenant that has a team with the same name. Toggle is symmetric — check
+  // creates the missing mappings, uncheck removes all of them at once.
+  const toggleTeam = async (groupId: number, appId: number, teamName: string) => {
+    const info = remoteInfoMap[appId];
+    if (!info) return;
+    const existing = getMappingsForApp(appId).filter(m => m.teamName === teamName);
+
+    if (existing.length > 0) {
+      for (const m of existing) {
+        await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
+      }
     } else {
-      const role = getTenantRole(appId, tenantSlug);
-      await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-        appId, appRole: role, tenantSlug, teamName,
-      });
+      const targets = info.teams.filter(tm => tm.name === teamName);
+      for (const tm of targets) {
+        const role = getTenantRole(appId, tm.tenantSlug);
+        await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
+          appId, appRole: role, tenantSlug: tm.tenantSlug, teamName,
+        });
+      }
     }
     await reloadMappings(groupId);
   };
@@ -466,7 +477,7 @@ export function PermissionGroupsPage() {
                                               return (
                                                 <button
                                                   key={tm.name}
-                                                  onClick={() => toggleTeam(group.id, app.id, tm.name, tn.slug)}
+                                                  onClick={() => toggleTeam(group.id, app.id, tm.name)}
                                                   className={cn(
                                                     'w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors',
                                                     teamActive ? 'bg-accent/10 text-accent' : 'text-text-muted hover:bg-bg-hover hover:text-text-primary',
