@@ -18,7 +18,6 @@ interface MappingRow {
   app_role: string;
   tenant_slug: string | null;
   team_name: string | null;
-  capabilities: string | string[] | null;
 }
 
 function rowToGroup(row: GroupRow): PermissionGroup {
@@ -34,7 +33,6 @@ function rowToGroup(row: GroupRow): PermissionGroup {
 }
 
 function rowToMapping(r: MappingRow): PermissionGroupAppMapping {
-  const caps = r.capabilities;
   return {
     id: r.id,
     groupId: r.group_id,
@@ -42,7 +40,6 @@ function rowToMapping(r: MappingRow): PermissionGroupAppMapping {
     appRole: r.app_role,
     tenantSlug: r.tenant_slug,
     teamName: r.team_name,
-    capabilities: caps ? (typeof caps === 'string' ? JSON.parse(caps) : caps) : null,
   };
 }
 
@@ -113,7 +110,6 @@ export const permissionGroupService = {
     appRole: string;
     tenantSlug?: string | null;
     teamName?: string | null;
-    capabilities?: string[] | null;
   }): Promise<PermissionGroupAppMapping> {
     const [row] = await db('permission_group_app_mappings')
       .insert({
@@ -122,7 +118,6 @@ export const permissionGroupService = {
         app_role: data.appRole,
         tenant_slug: data.tenantSlug ?? null,
         team_name: data.teamName ?? null,
-        capabilities: data.capabilities ? JSON.stringify(data.capabilities) : null,
       })
       .returning('*') as MappingRow[];
     return rowToMapping(row);
@@ -130,11 +125,9 @@ export const permissionGroupService = {
 
   async updateMapping(id: number, data: {
     appRole?: string;
-    capabilities?: string[] | null;
   }): Promise<PermissionGroupAppMapping | null> {
     const update: Record<string, unknown> = {};
     if (data.appRole !== undefined) update.app_role = data.appRole;
-    if (data.capabilities !== undefined) update.capabilities = data.capabilities ? JSON.stringify(data.capabilities) : null;
     if (Object.keys(update).length === 0) return null;
 
     const [row] = await db('permission_group_app_mappings')
@@ -185,26 +178,28 @@ export const permissionGroupService = {
     return result;
   },
 
-  // ── Resolution: user + app → effective role/tenants/teams/capabilities ────
+  // ── Resolution: user + app → effective role / tenants / teams ────
+  //
+  // Capabilities used to be tracked per mapping; that concept was removed —
+  // a tenant's role (permission set) on the app side owns the capability
+  // matrix, and the team scopes that role to a set of devices.
 
   async resolveForUserAndApp(userId: number, appId: number): Promise<{
     role: string;
-    tenants: Array<{ slug: string; role: string; capabilities: string[] }>;
+    tenants: Array<{ slug: string; role: string }>;
     teams: string[];
-    capabilities: string[];
   }> {
     const mappings = await db('user_permission_groups as upg')
       .join('permission_group_app_mappings as pgam', 'pgam.group_id', 'upg.group_id')
       .where({ 'upg.user_id': userId, 'pgam.app_id': appId })
-      .select('pgam.app_role', 'pgam.tenant_slug', 'pgam.team_name', 'pgam.capabilities') as Array<{
+      .select('pgam.app_role', 'pgam.tenant_slug', 'pgam.team_name') as Array<{
         app_role: string;
         tenant_slug: string | null;
         team_name: string | null;
-        capabilities: string | string[] | null;
       }>;
 
     if (mappings.length === 0) {
-      return { role: '', tenants: [], teams: [], capabilities: [] };
+      return { role: '', tenants: [], teams: [] };
     }
 
     // Highest privilege wins for global role
@@ -212,38 +207,20 @@ export const permissionGroupService = {
     if (mappings.some(m => m.app_role === 'admin')) role = 'admin';
     else if (mappings.some(m => m.app_role === 'user')) role = 'user';
 
-    // Collect per-tenant: role (highest wins) + capabilities (union)
+    // Per-tenant role (highest wins)
     const tenantRoleMap = new Map<string, string>();
-    const tenantCapsMap = new Map<string, Set<string>>();
     for (const m of mappings) {
       if (m.tenant_slug) {
-        // Role
         const existing = tenantRoleMap.get(m.tenant_slug);
         if (!existing || m.app_role === 'admin' || (m.app_role === 'user' && existing === 'viewer')) {
           tenantRoleMap.set(m.tenant_slug, m.app_role);
         }
-        // Capabilities
-        const caps = m.capabilities ? (typeof m.capabilities === 'string' ? JSON.parse(m.capabilities) as string[] : m.capabilities) : [];
-        if (!tenantCapsMap.has(m.tenant_slug)) tenantCapsMap.set(m.tenant_slug, new Set());
-        for (const c of caps) tenantCapsMap.get(m.tenant_slug)!.add(c);
       }
     }
-    const tenants = Array.from(tenantRoleMap.entries()).map(([slug, r]) => ({
-      slug,
-      role: r,
-      capabilities: [...(tenantCapsMap.get(slug) ?? [])],
-    }));
+    const tenants = Array.from(tenantRoleMap.entries()).map(([slug, r]) => ({ slug, role: r }));
 
-    // Collect unique team names
     const teams = [...new Set(mappings.filter(m => m.team_name).map(m => m.team_name!))];
 
-    // Global capabilities = union of all
-    const allCaps = new Set<string>();
-    for (const m of mappings) {
-      const caps = m.capabilities ? (typeof m.capabilities === 'string' ? JSON.parse(m.capabilities) as string[] : m.capabilities) : [];
-      for (const c of caps) allCaps.add(c);
-    }
-
-    return { role, tenants, teams, capabilities: [...allCaps] };
+    return { role, tenants, teams };
   },
 };

@@ -1,11 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, ChevronDown, ChevronRight, Power, Check, Lock, Shield } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, Power, Check, Lock } from 'lucide-react';
 import apiClient from '../api/client';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { cn } from '../utils/cn';
-import type { PermissionGroup, PermissionGroupAppMapping, ConnectedApp, AppCapabilitySchema } from '@obligate/shared';
+import type { PermissionGroup, PermissionGroupAppMapping, ConnectedApp } from '@obligate/shared';
 
 interface RemoteAppInfo {
   roles: string[];
@@ -34,9 +34,8 @@ export function PermissionGroupsPage() {
   const [saving, setSaving] = useState(false);
   const [expandedTenants, setExpandedTenants] = useState<Set<string>>(new Set());
 
-  // Remote info + capability schemas cache per app
+  // Remote info cache per app (roles + tenants + teams + permission sets)
   const [remoteInfoMap, setRemoteInfoMap] = useState<Record<number, RemoteAppInfo | null>>({});
-  const [capSchemasMap, setCapSchemasMap] = useState<Record<number, AppCapabilitySchema[]>>({});
   const [loadingApps, setLoadingApps] = useState<Set<number>>(new Set());
   const fetchedRef = useRef<Set<number>>(new Set());
 
@@ -56,15 +55,10 @@ export function PermissionGroupsPage() {
     fetchedRef.current.add(appId);
     setLoadingApps(prev => new Set(prev).add(appId));
     try {
-      const [ri, cs] = await Promise.all([
-        apiClient.get(`/admin/apps/${appId}/remote-info`),
-        apiClient.get(`/admin/apps/${appId}/capability-schemas`),
-      ]);
+      const ri = await apiClient.get(`/admin/apps/${appId}/remote-info`);
       setRemoteInfoMap(prev => ({ ...prev, [appId]: ri.data.success ? ri.data.data : null }));
-      setCapSchemasMap(prev => ({ ...prev, [appId]: cs.data.success ? cs.data.data : [] }));
     } catch {
       setRemoteInfoMap(prev => ({ ...prev, [appId]: null }));
-      setCapSchemasMap(prev => ({ ...prev, [appId]: [] }));
     }
     setLoadingApps(prev => { const s = new Set(prev); s.delete(appId); return s; });
   };
@@ -140,12 +134,12 @@ export function PermissionGroupsPage() {
       if (info?.tenants.length) {
         for (const tn of info.tenants) {
           await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-            appId, appRole: 'user', tenantSlug: tn.slug, teamName: null, capabilities: [],
+            appId, appRole: 'user', tenantSlug: tn.slug, teamName: null,
           });
         }
       } else {
         await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-          appId, appRole: 'user', tenantSlug: null, teamName: null, capabilities: [],
+          appId, appRole: 'user', tenantSlug: null, teamName: null,
         });
       }
     }
@@ -164,7 +158,7 @@ export function PermissionGroupsPage() {
         for (const tn of info.tenants) {
           if (tn.slug !== tenantSlug) {
             await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-              appId, appRole: 'user', tenantSlug: tn.slug, teamName: null, capabilities: [],
+              appId, appRole: 'user', tenantSlug: tn.slug, teamName: null,
             });
           }
         }
@@ -180,7 +174,7 @@ export function PermissionGroupsPage() {
       }
     } else {
       await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-        appId, appRole: 'user', tenantSlug, teamName: null, capabilities: [],
+        appId, appRole: 'user', tenantSlug, teamName: null,
       });
     }
     await reloadMappings(groupId);
@@ -191,26 +185,24 @@ export function PermissionGroupsPage() {
       const info = remoteInfoMap[appId];
       const globalMapping = getMappingsForApp(appId).find(m => !m.tenantSlug);
       const role = globalMapping?.appRole ?? 'user';
-      const caps = globalMapping?.capabilities ?? [];
       for (const m of getMappingsForApp(appId)) {
         await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
       }
       if (info?.tenants.length) {
         for (const tn of info.tenants) {
           await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-            appId, appRole: role, tenantSlug: tn.slug, teamName: null, capabilities: caps,
+            appId, appRole: role, tenantSlug: tn.slug, teamName: null,
           });
         }
       }
     } else {
       const firstMapping = getMappingsForApp(appId)[0];
       const role = firstMapping?.appRole ?? 'user';
-      const caps = firstMapping?.capabilities ?? [];
       for (const m of getMappingsForApp(appId)) {
         await apiClient.delete(`/admin/permission-groups/${groupId}/mappings/${m.id}`);
       }
       await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-        appId, appRole: role, tenantSlug: null, teamName: null, capabilities: caps,
+        appId, appRole: role, tenantSlug: null, teamName: null,
       });
     }
     await reloadMappings(groupId);
@@ -227,14 +219,6 @@ export function PermissionGroupsPage() {
     await reloadMappings(groupId);
   };
 
-  const toggleCapability = async (groupId: number, mappingId: number, cap: string, currentCaps: string[]) => {
-    const newCaps = currentCaps.includes(cap)
-      ? currentCaps.filter(c => c !== cap)
-      : [...currentCaps, cap];
-    await apiClient.put(`/admin/permission-groups/${groupId}/mappings/${mappingId}`, { capabilities: newCaps });
-    await reloadMappings(groupId);
-  };
-
   const toggleTeam = async (groupId: number, appId: number, teamName: string, tenantSlug: string) => {
     const existing = getMappingsForApp(appId).find(m => m.teamName === teamName && m.tenantSlug === tenantSlug);
     if (existing) {
@@ -242,7 +226,7 @@ export function PermissionGroupsPage() {
     } else {
       const role = getTenantRole(appId, tenantSlug);
       await apiClient.post(`/admin/permission-groups/${groupId}/mappings`, {
-        appId, appRole: role, tenantSlug, teamName, capabilities: [],
+        appId, appRole: role, tenantSlug, teamName,
       });
     }
     await reloadMappings(groupId);
@@ -285,34 +269,6 @@ export function PermissionGroupsPage() {
         </button>
       ))}
     </div>
-    );
-  };
-
-  const renderCapabilities = (groupId: number, mappingId: number | undefined, appId: number, currentCaps: string[]) => {
-    const schemas = capSchemasMap[appId];
-    if (!schemas?.length || !mappingId) return null;
-    return (
-      <div className="flex items-center gap-1 flex-wrap">
-        {schemas.map(s => {
-          const active = currentCaps.includes(s.key);
-          return (
-            <button
-              key={s.key}
-              onClick={() => toggleCapability(groupId, mappingId, s.key, currentCaps)}
-              title={s.description ?? s.label}
-              className={cn(
-                'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-colors border',
-                active
-                  ? 'bg-status-up/15 text-status-up border-status-up/30'
-                  : 'bg-bg-hover text-text-muted border-border hover:border-border-light',
-              )}
-            >
-              {active ? <Check size={9} /> : <Lock size={9} className="opacity-40" />}
-              {s.label}
-            </button>
-          );
-        })}
-      </div>
     );
   };
 
@@ -372,7 +328,6 @@ export function PermissionGroupsPage() {
                       const enabledTeams = getEnabledTeams(app.id);
                       const globalAccess = hasGlobalMapping(app.id);
                       const globalMapping = getMappingsForApp(app.id).find(m => !m.tenantSlug && !m.teamName);
-                      const hasCaps = (capSchemasMap[app.id]?.length ?? 0) > 0;
 
                       return (
                         <div
@@ -398,12 +353,9 @@ export function PermissionGroupsPage() {
                               <span className="text-sm font-medium text-text-primary">{app.name}</span>
                               <span className="text-xs text-text-muted ml-2">{app.appType}</span>
                             </div>
-                            {hasCaps && enabled && (
-                              <span title="Capabilities available"><Shield size={14} className="text-text-muted" /></span>
-                            )}
                           </div>
 
-                          {/* Tenants + Capabilities + Teams */}
+                          {/* Tenants + Teams */}
                           {enabled && (
                             <div className="border-t border-border px-4 py-3">
                               {isLoading ? (
@@ -427,21 +379,15 @@ export function PermissionGroupsPage() {
                                         {globalAccess && <Check size={12} />}
                                         {t('groups.allTenants')}
                                       </button>
-                                      {/* Global role + capabilities when in global mode */}
-                                      {globalAccess && (
-                                        <>
-                                          {renderRoleSelector(group.id, app.id, null, globalMapping?.appRole ?? 'user')}
-                                          {renderCapabilities(group.id, globalMapping?.id, app.id, globalMapping?.capabilities ?? [])}
-                                        </>
-                                      )}
+                                      {/* Global role when in global mode */}
+                                      {globalAccess && renderRoleSelector(group.id, app.id, null, globalMapping?.appRole ?? 'user')}
                                     </div>
                                   )}
 
-                                  {/* No tenants — show role + caps on the single mapping */}
+                                  {/* No tenants — show role on the single mapping */}
                                   {info.tenants.length === 0 && (
                                     <div className="flex items-center gap-2 flex-wrap">
                                       {renderRoleSelector(group.id, app.id, null, globalMapping?.appRole ?? 'user')}
-                                      {renderCapabilities(group.id, globalMapping?.id, app.id, globalMapping?.capabilities ?? [])}
                                     </div>
                                   )}
 
@@ -453,7 +399,6 @@ export function PermissionGroupsPage() {
                                     const isExpanded = expandedTenants.has(tenantKey);
                                     const baseMapping = getTenantBaseMapping(app.id, tn.slug);
                                     const tenantRole = baseMapping?.appRole ?? (globalAccess ? (globalMapping?.appRole ?? 'user') : 'user');
-                                    const tenantCaps = baseMapping?.capabilities ?? (globalAccess ? (globalMapping?.capabilities ?? []) : []);
                                     const tenantEnabledTeams = tenantTeams.filter(tm => enabledTeams.has(tm.name));
 
                                     return (
@@ -494,11 +439,6 @@ export function PermissionGroupsPage() {
                                           {/* Per-tenant role selector (only when not global) */}
                                           {tenantActive && !globalAccess && (
                                             renderRoleSelector(group.id, app.id, tn.slug, tenantRole)
-                                          )}
-
-                                          {/* Per-tenant capabilities (only when not global) */}
-                                          {tenantActive && !globalAccess && hasCaps && (
-                                            renderCapabilities(group.id, baseMapping?.id, app.id, tenantCaps)
                                           )}
 
                                           {/* Team count */}
@@ -549,7 +489,7 @@ export function PermissionGroupsPage() {
                                     );
                                   })}
 
-                                  {info.tenants.length === 0 && info.teams.length === 0 && !hasCaps && (
+                                  {info.tenants.length === 0 && info.teams.length === 0 && (
                                     <p className="text-xs text-text-muted italic">{t('groups.noMappings')}</p>
                                   )}
                                 </div>

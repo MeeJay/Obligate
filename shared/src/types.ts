@@ -77,17 +77,9 @@ export interface PermissionGroupAppMapping {
   id: number;
   groupId: number;
   appId: number;
-  appRole: string;         // 'admin' | 'user' | 'viewer'
+  appRole: string;         // 'admin' | 'user' | 'viewer' | <permission-set-slug>
   tenantSlug: string | null;
   teamName: string | null;
-  capabilities: string[] | null;
-}
-
-export interface AppCapabilitySchema {
-  key: string;
-  label: string;
-  description: string | null;
-  sortOrder: number;
 }
 
 // ── LDAP/AD Directories ──────────────────────────────────────────────────────
@@ -148,9 +140,8 @@ export interface TokenExchangeResponse {
   email: string | null;
   displayName: string | null;
   role: string;
-  tenants: Array<{ slug: string; role: string; capabilities?: string[] }>;
+  tenants: Array<{ slug: string; role: string }>;
   teams: string[];
-  capabilities: string[];   // union of all per-tenant capabilities
   authSource: 'local' | 'ldap';
   linkedLocalUserId: number | null;
 }
