@@ -182,7 +182,28 @@
     "local": "Локальний",
     "noMatch": "Немає користувачів, що відповідають вашому пошуку.",
     "noUsers": "Користувачів поки немає.",
-    "deleteConfirm": "Ви впевнені, що хочете видалити цього користувача?"
+    "deleteConfirm": "Ви впевнені, що хочете видалити цього користувача?",
+    "activity": {
+      "details": "Деталі активності",
+      "twoFactor": "2FA",
+      "noTwoFactor": "Без 2FA",
+      "twoFactorEnabled": "Двофакторну автентифікацію ввімкнено",
+      "twoFactorDisabled": "Двофакторну автентифікацію не налаштовано",
+      "twoFactorStatus": "Статус 2FA",
+      "lastActivity": "Остання активність {{when}} {{app}}",
+      "onObligate": "в Obligate",
+      "onApp": "в {{app}}",
+      "neverLoggedIn": "Жодного входу",
+      "justNow": "щойно",
+      "minutesAgo": "{{count}} хв тому",
+      "hoursAgo": "{{count}} год тому",
+      "daysAgo": "{{count}} д тому",
+      "obligateLogin": "Останній вхід в Obligate",
+      "accountCreated": "Обліковий запис створено",
+      "perAppHeader": "Останній вхід по застосунках",
+      "noAppLogins": "Поки немає SSO-входів.",
+      "never": "ніколи"
+    }
   },
   "groups": {
     "title": "Групи дозволів",

@@ -182,7 +182,28 @@
     "local": "Yerel",
     "noMatch": "Aramanızla eşleşen kullanıcı yok.",
     "noUsers": "Henüz kullanıcı yok.",
-    "deleteConfirm": "Bu kullanıcıyı silmek istediğinizden emin misiniz?"
+    "deleteConfirm": "Bu kullanıcıyı silmek istediğinizden emin misiniz?",
+    "activity": {
+      "details": "Etkinlik ayrıntıları",
+      "twoFactor": "2FA",
+      "noTwoFactor": "2FA Yok",
+      "twoFactorEnabled": "İki faktörlü kimlik doğrulama etkin",
+      "twoFactorDisabled": "İki faktörlü kimlik doğrulama yapılandırılmadı",
+      "twoFactorStatus": "2FA Durumu",
+      "lastActivity": "Son etkinlik {{when}} {{app}}",
+      "onObligate": "Obligate üzerinde",
+      "onApp": "{{app}} üzerinde",
+      "neverLoggedIn": "Hiç giriş yapmadı",
+      "justNow": "şimdi",
+      "minutesAgo": "{{count}} dk önce",
+      "hoursAgo": "{{count}} sa önce",
+      "daysAgo": "{{count}} g önce",
+      "obligateLogin": "Son Obligate girişi",
+      "accountCreated": "Hesap oluşturuldu",
+      "perAppHeader": "Uygulama başına son giriş",
+      "noAppLogins": "Henüz SSO girişi yok.",
+      "never": "hiç"
+    }
   },
   "groups": {
     "title": "İzin Grupları",

@@ -182,7 +182,28 @@
     "local": "Lokal",
     "noMatch": "Inga användare matchar din sökning.",
     "noUsers": "Inga användare ännu.",
-    "deleteConfirm": "Är du säker på att du vill ta bort denna användare?"
+    "deleteConfirm": "Är du säker på att du vill ta bort denna användare?",
+    "activity": {
+      "details": "Aktivitetsdetaljer",
+      "twoFactor": "2FA",
+      "noTwoFactor": "Ingen 2FA",
+      "twoFactorEnabled": "Tvåfaktorsautentisering aktiverad",
+      "twoFactorDisabled": "Tvåfaktorsautentisering inte konfigurerad",
+      "twoFactorStatus": "2FA-status",
+      "lastActivity": "Senast aktiv {{when}} {{app}}",
+      "onObligate": "på Obligate",
+      "onApp": "på {{app}}",
+      "neverLoggedIn": "Aldrig inloggad",
+      "justNow": "just nu",
+      "minutesAgo": "för {{count}} min sedan",
+      "hoursAgo": "för {{count}} tim sedan",
+      "daysAgo": "för {{count}} d sedan",
+      "obligateLogin": "Senaste Obligate-inloggning",
+      "accountCreated": "Konto skapat",
+      "perAppHeader": "Senaste inloggning per app",
+      "noAppLogins": "Inga SSO-inloggningar ännu.",
+      "never": "aldrig"
+    }
   },
   "groups": {
     "title": "Behörighetsgrupper",

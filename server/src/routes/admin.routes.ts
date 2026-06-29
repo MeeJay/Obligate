@@ -125,14 +125,73 @@ adminRoutes.post('/apps/:id/regenerate-key', async (req, res) => {
 
 adminRoutes.get('/users', async (_req, res) => {
   try {
-    const [users, userGroups] = await Promise.all([
+    const [users, userGroups, activity] = await Promise.all([
       authService.listUsers(),
       permissionGroupService.getAllUserGroupAssignments(),
+      authService.getAggregatedActivity(),
     ]);
-    res.json({ success: true, data: users, userGroups });
+    const activityMap: Record<number, { lastActivityAt: string; lastActivityApp: string } | null> = {};
+    activity.forEach((v, k) => { activityMap[k] = v; });
+    res.json({ success: true, data: users, userGroups, activity: activityMap });
   } catch (err) {
     logger.error(err, 'Failed to list users');
     res.status(500).json({ success: false, error: 'Failed to list users' });
+  }
+});
+
+// Detailed activity for the expandable panel on each user row.
+adminRoutes.get('/users/:id/activity', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(userId)) {
+      res.status(400).json({ success: false, error: 'Invalid user id' });
+      return;
+    }
+
+    const user = await db('users').where({ id: userId })
+      .select('last_login_at', 'totp_enabled', 'created_at').first() as {
+        last_login_at: Date | null; totp_enabled: boolean; created_at: Date;
+      } | undefined;
+    if (!user) {
+      res.status(404).json({ success: false, error: 'User not found' });
+      return;
+    }
+
+    const rows = await db('user_app_links as ual')
+      .join('connected_apps as ca', 'ca.id', 'ual.app_id')
+      .where({ 'ual.user_id': userId, 'ca.is_active': true })
+      .select(
+        'ca.id as app_id', 'ca.app_type', 'ca.name', 'ca.color',
+        'ual.first_login_at', 'ual.last_login_at', 'ual.enabled', 'ual.remote_user_id',
+      ) as Array<{
+        app_id: number; app_type: string; name: string; color: string | null;
+        first_login_at: Date | null; last_login_at: Date | null;
+        enabled: boolean; remote_user_id: number | null;
+      }>;
+
+    res.json({
+      success: true,
+      data: {
+        obligateLastLogin: user.last_login_at?.toISOString() ?? null,
+        totpEnabled: user.totp_enabled,
+        createdAt: user.created_at.toISOString(),
+        apps: rows
+          .sort((a, b) => (b.last_login_at?.getTime() ?? 0) - (a.last_login_at?.getTime() ?? 0))
+          .map(r => ({
+            appId: r.app_id,
+            appType: r.app_type,
+            name: r.name,
+            color: r.color,
+            firstLoginAt: r.first_login_at?.toISOString() ?? null,
+            lastLoginAt: r.last_login_at?.toISOString() ?? null,
+            enabled: r.enabled,
+            linked: r.remote_user_id != null,
+          })),
+      },
+    });
+  } catch (err) {
+    logger.error(err, 'Failed to fetch user activity');
+    res.status(500).json({ success: false, error: 'Failed to fetch user activity' });
   }
 });
 

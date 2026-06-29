@@ -20,6 +20,7 @@ interface UserRow {
   preferred_theme: string;
   profile_photo_url: string | null;
   enrollment_version: number;
+  last_login_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -40,6 +41,7 @@ function rowToUser(row: UserRow): ObligateUser {
     preferredTheme: row.preferred_theme ?? 'obli-operator',
     profilePhotoUrl: row.profile_photo_url ?? null,
     enrollmentVersion: row.enrollment_version ?? 0,
+    lastLoginAt: row.last_login_at ? row.last_login_at.toISOString() : null,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   };
@@ -71,6 +73,10 @@ export const authService = {
 
     const valid = await comparePassword(password, row.password_hash);
     if (!valid) return null;
+
+    const now = new Date();
+    await db('users').where({ id: row.id }).update({ last_login_at: now });
+    row.last_login_at = now;
 
     return rowToUser(row);
   },
@@ -145,5 +151,40 @@ export const authService = {
   async listUsers(): Promise<ObligateUser[]> {
     const rows = await db('users').orderBy('username') as UserRow[];
     return rows.map(rowToUser);
+  },
+
+  /**
+   * Return the most recent activity timestamp per user across the SSO ecosystem
+   * (max of users.last_login_at and any user_app_links.last_login_at), plus the
+   * appType where the most recent activity happened (or 'obligate').
+   */
+  async getAggregatedActivity(): Promise<Map<number, { lastActivityAt: string; lastActivityApp: string } | null>> {
+    const map = new Map<number, { lastActivityAt: string; lastActivityApp: string } | null>();
+
+    const users = await db('users').select('id', 'last_login_at') as Array<{ id: number; last_login_at: Date | null }>;
+    for (const u of users) {
+      if (u.last_login_at) {
+        map.set(u.id, { lastActivityAt: u.last_login_at.toISOString(), lastActivityApp: 'obligate' });
+      } else {
+        map.set(u.id, null);
+      }
+    }
+
+    const links = await db('user_app_links as ual')
+      .join('connected_apps as ca', 'ca.id', 'ual.app_id')
+      .whereNotNull('ual.last_login_at')
+      .select('ual.user_id', 'ual.last_login_at', 'ca.app_type') as Array<{
+        user_id: number; last_login_at: Date; app_type: string;
+      }>;
+
+    for (const l of links) {
+      const current = map.get(l.user_id);
+      const ts = l.last_login_at.toISOString();
+      if (!current || ts > current.lastActivityAt) {
+        map.set(l.user_id, { lastActivityAt: ts, lastActivityApp: l.app_type });
+      }
+    }
+
+    return map;
   },
 };

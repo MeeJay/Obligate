@@ -182,7 +182,28 @@
     "local": "Lokal",
     "noMatch": "Kein Benutzer entspricht Ihrer Suche.",
     "noUsers": "Noch keine Benutzer.",
-    "deleteConfirm": "Sind Sie sicher, dass Sie diesen Benutzer löschen möchten?"
+    "deleteConfirm": "Sind Sie sicher, dass Sie diesen Benutzer löschen möchten?",
+    "activity": {
+      "details": "Aktivitätsdetails",
+      "twoFactor": "2FA",
+      "noTwoFactor": "Kein 2FA",
+      "twoFactorEnabled": "Zwei-Faktor-Authentifizierung aktiviert",
+      "twoFactorDisabled": "Zwei-Faktor-Authentifizierung nicht konfiguriert",
+      "twoFactorStatus": "2FA-Status",
+      "lastActivity": "Zuletzt aktiv {{when}} {{app}}",
+      "onObligate": "auf Obligate",
+      "onApp": "auf {{app}}",
+      "neverLoggedIn": "Noch nie angemeldet",
+      "justNow": "gerade eben",
+      "minutesAgo": "vor {{count}} Min",
+      "hoursAgo": "vor {{count}} Std",
+      "daysAgo": "vor {{count}} T",
+      "obligateLogin": "Letzte Obligate-Anmeldung",
+      "accountCreated": "Konto erstellt",
+      "perAppHeader": "Letzte Anmeldung pro App",
+      "noAppLogins": "Noch keine SSO-Anmeldungen.",
+      "never": "nie"
+    }
   },
   "groups": {
     "title": "Berechtigungsgruppen",

@@ -182,7 +182,28 @@
     "local": "Lokální",
     "noMatch": "Žádní uživatelé neodpovídají vašemu hledání.",
     "noUsers": "Zatím žádní uživatelé.",
-    "deleteConfirm": "Opravdu chcete smazat tohoto uživatele?"
+    "deleteConfirm": "Opravdu chcete smazat tohoto uživatele?",
+    "activity": {
+      "details": "Detaily aktivity",
+      "twoFactor": "2FA",
+      "noTwoFactor": "Bez 2FA",
+      "twoFactorEnabled": "Dvoufaktorové ověřování zapnuto",
+      "twoFactorDisabled": "Dvoufaktorové ověřování není nakonfigurováno",
+      "twoFactorStatus": "Stav 2FA",
+      "lastActivity": "Poslední aktivita {{when}} {{app}}",
+      "onObligate": "na Obligate",
+      "onApp": "na {{app}}",
+      "neverLoggedIn": "Nikdy nepřihlášen",
+      "justNow": "právě teď",
+      "minutesAgo": "před {{count}} min",
+      "hoursAgo": "před {{count}} h",
+      "daysAgo": "před {{count}} d",
+      "obligateLogin": "Poslední přihlášení k Obligate",
+      "accountCreated": "Účet vytvořen",
+      "perAppHeader": "Poslední přihlášení podle aplikace",
+      "noAppLogins": "Zatím žádné SSO přihlášení.",
+      "never": "nikdy"
+    }
   },
   "groups": {
     "title": "Skupiny oprávnění",

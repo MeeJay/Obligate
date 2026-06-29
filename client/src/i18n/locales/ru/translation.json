@@ -182,7 +182,28 @@
     "local": "Локальный",
     "noMatch": "Нет пользователей, соответствующих вашему запросу.",
     "noUsers": "Пока нет пользователей.",
-    "deleteConfirm": "Вы уверены, что хотите удалить этого пользователя?"
+    "deleteConfirm": "Вы уверены, что хотите удалить этого пользователя?",
+    "activity": {
+      "details": "Детали активности",
+      "twoFactor": "2FA",
+      "noTwoFactor": "Без 2FA",
+      "twoFactorEnabled": "Двухфакторная аутентификация включена",
+      "twoFactorDisabled": "Двухфакторная аутентификация не настроена",
+      "twoFactorStatus": "Статус 2FA",
+      "lastActivity": "Последняя активность {{when}} {{app}}",
+      "onObligate": "в Obligate",
+      "onApp": "в {{app}}",
+      "neverLoggedIn": "Никогда не входил",
+      "justNow": "только что",
+      "minutesAgo": "{{count}} мин назад",
+      "hoursAgo": "{{count}} ч назад",
+      "daysAgo": "{{count}} д назад",
+      "obligateLogin": "Последний вход в Obligate",
+      "accountCreated": "Аккаунт создан",
+      "perAppHeader": "Последний вход по приложениям",
+      "noAppLogins": "Нет SSO-входов.",
+      "never": "никогда"
+    }
   },
   "groups": {
     "title": "Группы разрешений",

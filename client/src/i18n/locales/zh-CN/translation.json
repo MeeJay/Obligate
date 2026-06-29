@@ -182,7 +182,28 @@
     "local": "本地",
     "noMatch": "没有匹配搜索的用户。",
     "noUsers": "还没有用户。",
-    "deleteConfirm": "确定要删除此用户吗？"
+    "deleteConfirm": "确定要删除此用户吗？",
+    "activity": {
+      "details": "活动详情",
+      "twoFactor": "双因素",
+      "noTwoFactor": "未启用 2FA",
+      "twoFactorEnabled": "已启用双因素认证",
+      "twoFactorDisabled": "未配置双因素认证",
+      "twoFactorStatus": "2FA 状态",
+      "lastActivity": "上次活动 {{when}} {{app}}",
+      "onObligate": "在 Obligate",
+      "onApp": "在 {{app}}",
+      "neverLoggedIn": "从未登录",
+      "justNow": "刚刚",
+      "minutesAgo": "{{count}} 分钟前",
+      "hoursAgo": "{{count}} 小时前",
+      "daysAgo": "{{count}} 天前",
+      "obligateLogin": "上次登录 Obligate",
+      "accountCreated": "账户创建时间",
+      "perAppHeader": "每个应用的上次登录",
+      "noAppLogins": "尚无 SSO 登录。",
+      "never": "从未"
+    }
   },
   "groups": {
     "title": "权限组",

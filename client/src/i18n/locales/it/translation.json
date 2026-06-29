@@ -182,7 +182,28 @@
     "local": "Locale",
     "noMatch": "Nessun utente corrisponde alla ricerca.",
     "noUsers": "Nessun utente ancora.",
-    "deleteConfirm": "Sei sicuro di voler eliminare questo utente?"
+    "deleteConfirm": "Sei sicuro di voler eliminare questo utente?",
+    "activity": {
+      "details": "Dettagli attività",
+      "twoFactor": "2FA",
+      "noTwoFactor": "No 2FA",
+      "twoFactorEnabled": "Autenticazione a due fattori attiva",
+      "twoFactorDisabled": "Autenticazione a due fattori non configurata",
+      "twoFactorStatus": "Stato 2FA",
+      "lastActivity": "Ultima attività {{when}} {{app}}",
+      "onObligate": "su Obligate",
+      "onApp": "su {{app}}",
+      "neverLoggedIn": "Mai connesso",
+      "justNow": "adesso",
+      "minutesAgo": "{{count}} min fa",
+      "hoursAgo": "{{count}} h fa",
+      "daysAgo": "{{count}} g fa",
+      "obligateLogin": "Ultimo accesso Obligate",
+      "accountCreated": "Account creato",
+      "perAppHeader": "Ultimo accesso per app",
+      "noAppLogins": "Nessun accesso SSO.",
+      "never": "mai"
+    }
   },
   "groups": {
     "title": "Gruppi di permessi",

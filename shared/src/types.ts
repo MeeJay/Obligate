@@ -15,6 +15,7 @@ export interface ObligateUser {
   preferredTheme: string;
   profilePhotoUrl: string | null;
   enrollmentVersion: number;
+  lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -182,7 +182,28 @@
     "local": "محلي",
     "noMatch": "لا يوجد مستخدمون مطابقون لبحثك.",
     "noUsers": "لا يوجد مستخدمون بعد.",
-    "deleteConfirm": "هل أنت متأكد أنك تريد حذف هذا المستخدم؟"
+    "deleteConfirm": "هل أنت متأكد أنك تريد حذف هذا المستخدم؟",
+    "activity": {
+      "details": "تفاصيل النشاط",
+      "twoFactor": "2FA",
+      "noTwoFactor": "بدون 2FA",
+      "twoFactorEnabled": "تم تفعيل المصادقة الثنائية",
+      "twoFactorDisabled": "المصادقة الثنائية غير مهيأة",
+      "twoFactorStatus": "حالة 2FA",
+      "lastActivity": "آخر نشاط {{when}} {{app}}",
+      "onObligate": "على Obligate",
+      "onApp": "على {{app}}",
+      "neverLoggedIn": "لم يتم تسجيل الدخول",
+      "justNow": "الآن",
+      "minutesAgo": "منذ {{count}} د",
+      "hoursAgo": "منذ {{count}} س",
+      "daysAgo": "منذ {{count}} ي",
+      "obligateLogin": "آخر تسجيل دخول إلى Obligate",
+      "accountCreated": "تاريخ إنشاء الحساب",
+      "perAppHeader": "آخر تسجيل دخول لكل تطبيق",
+      "noAppLogins": "لا توجد تسجيلات دخول SSO.",
+      "never": "أبدًا"
+    }
   },
   "groups": {
     "title": "مجموعات الأذونات",

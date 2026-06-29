@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Shield, User, Pencil, Trash2, X, Check, Key, ShieldCheck, Search } from 'lucide-react';
+import { Plus, Shield, User, Pencil, Trash2, X, Check, Key, ShieldCheck, Search, ChevronDown, KeyRound, Clock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import apiClient from '../api/client';
 import { Button } from '../components/common/Button';
@@ -7,11 +7,57 @@ import { Input } from '../components/common/Input';
 import type { ObligateUser, PermissionGroup } from '@obligate/shared';
 import { cn } from '../utils/cn';
 
+interface ActivityDetail {
+  obligateLastLogin: string | null;
+  totpEnabled: boolean;
+  createdAt: string;
+  apps: Array<{
+    appId: number;
+    appType: string;
+    name: string;
+    color: string | null;
+    firstLoginAt: string | null;
+    lastLoginAt: string | null;
+    enabled: boolean;
+    linked: boolean;
+  }>;
+}
+
+interface ActivitySummary {
+  lastActivityAt: string;
+  lastActivityApp: string;
+}
+
+function formatRelative(iso: string, locale: string, t: (k: string, o?: Record<string, unknown>) => string): string {
+  const date = new Date(iso);
+  const diffMs = Date.now() - date.getTime();
+  const sec = Math.floor(diffMs / 1000);
+  if (sec < 60) return t('users.activity.justNow');
+  const min = Math.floor(sec / 60);
+  if (min < 60) return t('users.activity.minutesAgo', { count: min });
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return t('users.activity.hoursAgo', { count: hours });
+  const days = Math.floor(hours / 24);
+  if (days < 30) return t('users.activity.daysAgo', { count: days });
+  return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'short', day: 'numeric' }).format(date);
+}
+
+function formatAbsolute(iso: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  }).format(new Date(iso));
+}
+
 export function UsersPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
   const [users, setUsers] = useState<ObligateUser[]>([]);
   const [groups, setGroups] = useState<PermissionGroup[]>([]);
   const [userGroupMap, setUserGroupMap] = useState<Record<number, PermissionGroup[]>>({});
+  const [activityMap, setActivityMap] = useState<Record<number, ActivitySummary | null>>({});
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [activityCache, setActivityCache] = useState<Record<number, ActivityDetail>>({});
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ username: '', email: '', displayName: '', password: '', role: 'user' as 'admin' | 'user' });
   const [saving, setSaving] = useState(false);
@@ -41,8 +87,26 @@ export function UsersPage() {
     if (u.data.success) {
       setUsers(u.data.data);
       if (u.data.userGroups) setUserGroupMap(u.data.userGroups);
+      if (u.data.activity) setActivityMap(u.data.activity);
     }
     if (g.data.success) setGroups(g.data.data);
+  };
+
+  const toggleExpand = async (userId: number) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+    if (!activityCache[userId]) {
+      try {
+        const { data } = await apiClient.get(`/admin/users/${userId}/activity`);
+        if (data.success) {
+          setActivityCache(prev => ({ ...prev, [userId]: data.data }));
+        }
+      } catch { /* silent */ }
+    }
   };
 
   useEffect(() => { load(); }, []);
@@ -238,8 +302,12 @@ export function UsersPage() {
       <div className="space-y-2">
         {filteredUsers.map(u => {
           const assignedGroups = userGroupMap[u.id] ?? [];
+          const activity = activityMap[u.id] ?? null;
+          const isExpanded = expanded.has(u.id);
+          const detail = activityCache[u.id];
           return (
-            <div key={u.id} className="bg-bg-secondary border border-border rounded-lg px-5 py-4">
+            <div key={u.id} className="bg-bg-secondary border border-border rounded-lg overflow-hidden">
+              <div className="px-5 py-4">
               {editingId === u.id ? (
                 /* Edit mode */
                 <div className="space-y-3">
@@ -275,6 +343,32 @@ export function UsersPage() {
                         {u.authSource === 'ldap' ? t('users.ldap') : t('users.local')}
                         {u.email && <span className="ml-2">{u.email}</span>}
                       </p>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px]">
+                        {u.totpEnabled ? (
+                          <span className="inline-flex items-center gap-1 text-status-up" title={t('users.activity.twoFactorEnabled')}>
+                            <KeyRound size={11} />{t('users.activity.twoFactor')}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-text-muted" title={t('users.activity.twoFactorDisabled')}>
+                            <KeyRound size={11} />{t('users.activity.noTwoFactor')}
+                          </span>
+                        )}
+                        {activity ? (
+                          <span className="inline-flex items-center gap-1 text-text-secondary" title={formatAbsolute(activity.lastActivityAt, locale)}>
+                            <Clock size={11} />
+                            {t('users.activity.lastActivity', {
+                              when: formatRelative(activity.lastActivityAt, locale, t),
+                              app: activity.lastActivityApp === 'obligate'
+                                ? t('users.activity.onObligate')
+                                : t('users.activity.onApp', { app: activity.lastActivityApp }),
+                            })}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-text-muted">
+                            <Clock size={11} />{t('users.activity.neverLoggedIn')}
+                          </span>
+                        )}
+                      </div>
                       {assignedGroups.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1.5">
                           {assignedGroups.map(g => (
@@ -299,7 +393,70 @@ export function UsersPage() {
                     <Button size="sm" variant="ghost" onClick={() => setPwUserId(u.id)} title={t('users.changePassword')}><Key size={14} /></Button>
                     <Button size="sm" variant="ghost" onClick={() => startEdit(u)} title={t('common.edit')}><Pencil size={14} /></Button>
                     <Button size="sm" variant="ghost" onClick={() => deleteUser(u.id)} title={t('common.delete')}><Trash2 size={14} className="text-status-down" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => toggleExpand(u.id)} title={t('users.activity.details')}>
+                      <ChevronDown size={14} className={cn('transition-transform', isExpanded && 'rotate-180')} />
+                    </Button>
                   </div>
+                </div>
+              )}
+              </div>
+              {isExpanded && (
+                <div className="border-t border-border bg-bg-tertiary/40 px-5 py-4 space-y-3">
+                  {!detail ? (
+                    <p className="text-xs text-text-muted">{t('common.loading')}</p>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div>
+                          <div className="text-text-muted">{t('users.activity.obligateLogin')}</div>
+                          <div className="text-text-primary mt-0.5">
+                            {detail.obligateLastLogin ? formatAbsolute(detail.obligateLastLogin, locale) : t('common.noData')}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-text-muted">{t('users.activity.twoFactorStatus')}</div>
+                          <div className="text-text-primary mt-0.5">
+                            {detail.totpEnabled ? t('common.enabled') : t('common.disabled')}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-text-muted">{t('users.activity.accountCreated')}</div>
+                          <div className="text-text-primary mt-0.5">{formatAbsolute(detail.createdAt, locale)}</div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-text-muted mb-1.5">{t('users.activity.perAppHeader')}</div>
+                        {detail.apps.length === 0 ? (
+                          <p className="text-xs text-text-muted italic">{t('users.activity.noAppLogins')}</p>
+                        ) : (
+                          <div className="space-y-1">
+                            {detail.apps.map(a => (
+                              <div key={a.appId} className="flex items-center justify-between gap-3 px-2.5 py-1.5 rounded bg-bg-secondary/60 text-xs">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: a.color || '#888' }} />
+                                  <span className="text-text-primary font-medium truncate">{a.name}</span>
+                                  {!a.enabled && (
+                                    <span className="text-[10px] text-status-down bg-status-down-bg px-1.5 py-0.5 rounded">
+                                      {t('common.disabled')}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-text-secondary text-right shrink-0">
+                                  {a.lastLoginAt ? (
+                                    <span title={formatAbsolute(a.lastLoginAt, locale)}>
+                                      {formatRelative(a.lastLoginAt, locale, t)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-text-muted italic">{t('users.activity.never')}</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>

@@ -182,7 +182,28 @@
     "local": "Lokalne",
     "noMatch": "Brak użytkowników pasujących do wyszukiwania.",
     "noUsers": "Brak użytkowników.",
-    "deleteConfirm": "Czy na pewno chcesz usunąć tego użytkownika?"
+    "deleteConfirm": "Czy na pewno chcesz usunąć tego użytkownika?",
+    "activity": {
+      "details": "Szczegóły aktywności",
+      "twoFactor": "2FA",
+      "noTwoFactor": "Bez 2FA",
+      "twoFactorEnabled": "Uwierzytelnianie dwuskładnikowe włączone",
+      "twoFactorDisabled": "Uwierzytelnianie dwuskładnikowe nieskonfigurowane",
+      "twoFactorStatus": "Stan 2FA",
+      "lastActivity": "Ostatnia aktywność {{when}} {{app}}",
+      "onObligate": "w Obligate",
+      "onApp": "w {{app}}",
+      "neverLoggedIn": "Nigdy nie zalogowany",
+      "justNow": "przed chwilą",
+      "minutesAgo": "{{count}} min temu",
+      "hoursAgo": "{{count}} godz. temu",
+      "daysAgo": "{{count}} dni temu",
+      "obligateLogin": "Ostatnie logowanie do Obligate",
+      "accountCreated": "Konto utworzone",
+      "perAppHeader": "Ostatnie logowanie wg aplikacji",
+      "noAppLogins": "Brak logowań SSO.",
+      "never": "nigdy"
+    }
   },
   "groups": {
     "title": "Grupy uprawnień",

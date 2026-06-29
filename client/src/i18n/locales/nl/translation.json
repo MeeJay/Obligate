@@ -182,7 +182,28 @@
     "local": "Lokaal",
     "noMatch": "Geen gebruikers gevonden voor uw zoekopdracht.",
     "noUsers": "Nog geen gebruikers.",
-    "deleteConfirm": "Weet u zeker dat u deze gebruiker wilt verwijderen?"
+    "deleteConfirm": "Weet u zeker dat u deze gebruiker wilt verwijderen?",
+    "activity": {
+      "details": "Activiteitsdetails",
+      "twoFactor": "2FA",
+      "noTwoFactor": "Geen 2FA",
+      "twoFactorEnabled": "Tweefactorauthenticatie ingeschakeld",
+      "twoFactorDisabled": "Tweefactorauthenticatie niet geconfigureerd",
+      "twoFactorStatus": "2FA-status",
+      "lastActivity": "Laatst actief {{when}} {{app}}",
+      "onObligate": "op Obligate",
+      "onApp": "op {{app}}",
+      "neverLoggedIn": "Nooit ingelogd",
+      "justNow": "zojuist",
+      "minutesAgo": "{{count}} min geleden",
+      "hoursAgo": "{{count}} u geleden",
+      "daysAgo": "{{count}} d geleden",
+      "obligateLogin": "Laatste Obligate-login",
+      "accountCreated": "Account aangemaakt",
+      "perAppHeader": "Laatste login per app",
+      "noAppLogins": "Nog geen SSO-aanmeldingen.",
+      "never": "nooit"
+    }
   },
   "groups": {
     "title": "Rechtengroepen",

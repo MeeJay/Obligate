@@ -182,7 +182,28 @@
     "local": "Local",
     "noMatch": "Ningún usuario coincide con su búsqueda.",
     "noUsers": "No hay usuarios aún.",
-    "deleteConfirm": "¿Está seguro de que desea eliminar este usuario?"
+    "deleteConfirm": "¿Está seguro de que desea eliminar este usuario?",
+    "activity": {
+      "details": "Detalles de actividad",
+      "twoFactor": "2FA",
+      "noTwoFactor": "Sin 2FA",
+      "twoFactorEnabled": "Autenticación de dos factores activada",
+      "twoFactorDisabled": "Autenticación de dos factores no configurada",
+      "twoFactorStatus": "Estado 2FA",
+      "lastActivity": "Última actividad {{when}} {{app}}",
+      "onObligate": "en Obligate",
+      "onApp": "en {{app}}",
+      "neverLoggedIn": "Nunca conectado",
+      "justNow": "ahora mismo",
+      "minutesAgo": "hace {{count}} min",
+      "hoursAgo": "hace {{count}} h",
+      "daysAgo": "hace {{count}} d",
+      "obligateLogin": "Último acceso a Obligate",
+      "accountCreated": "Cuenta creada",
+      "perAppHeader": "Último acceso por aplicación",
+      "noAppLogins": "Aún no hay accesos SSO.",
+      "never": "nunca"
+    }
   },
   "groups": {
     "title": "Grupos de permisos",

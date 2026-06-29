@@ -182,7 +182,28 @@
     "local": "Lokal",
     "noMatch": "Ingen brugere matcher din søgning.",
     "noUsers": "Ingen brugere endnu.",
-    "deleteConfirm": "Er du sikker på, at du vil slette denne bruger?"
+    "deleteConfirm": "Er du sikker på, at du vil slette denne bruger?",
+    "activity": {
+      "details": "Aktivitetsdetaljer",
+      "twoFactor": "2FA",
+      "noTwoFactor": "Ingen 2FA",
+      "twoFactorEnabled": "Tofaktorgodkendelse aktiveret",
+      "twoFactorDisabled": "Tofaktorgodkendelse ikke konfigureret",
+      "twoFactorStatus": "2FA-status",
+      "lastActivity": "Sidst aktiv {{when}} {{app}}",
+      "onObligate": "på Obligate",
+      "onApp": "på {{app}}",
+      "neverLoggedIn": "Aldrig logget ind",
+      "justNow": "lige nu",
+      "minutesAgo": "for {{count}} min siden",
+      "hoursAgo": "for {{count}} t siden",
+      "daysAgo": "for {{count}} d siden",
+      "obligateLogin": "Seneste Obligate-login",
+      "accountCreated": "Konto oprettet",
+      "perAppHeader": "Seneste login pr. app",
+      "noAppLogins": "Ingen SSO-logins endnu.",
+      "never": "aldrig"
+    }
   },
   "groups": {
     "title": "Tilladelsesgrupper",

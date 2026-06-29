@@ -182,7 +182,28 @@
     "local": "ローカル",
     "noMatch": "検索に一致するユーザーがいません。",
     "noUsers": "ユーザーはまだいません。",
-    "deleteConfirm": "このユーザーを削除してもよろしいですか？"
+    "deleteConfirm": "このユーザーを削除してもよろしいですか？",
+    "activity": {
+      "details": "アクティビティの詳細",
+      "twoFactor": "2FA",
+      "noTwoFactor": "2FA なし",
+      "twoFactorEnabled": "二要素認証が有効",
+      "twoFactorDisabled": "二要素認証は未設定",
+      "twoFactorStatus": "2FA ステータス",
+      "lastActivity": "最終アクティビティ {{when}} {{app}}",
+      "onObligate": "Obligate で",
+      "onApp": "{{app}} で",
+      "neverLoggedIn": "未ログイン",
+      "justNow": "たった今",
+      "minutesAgo": "{{count}} 分前",
+      "hoursAgo": "{{count}} 時間前",
+      "daysAgo": "{{count}} 日前",
+      "obligateLogin": "最終 Obligate ログイン",
+      "accountCreated": "アカウント作成",
+      "perAppHeader": "アプリ別の最終ログイン",
+      "noAppLogins": "SSO ログインはまだありません。",
+      "never": "なし"
+    }
   },
   "groups": {
     "title": "権限グループ",

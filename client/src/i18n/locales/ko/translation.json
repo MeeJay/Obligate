@@ -182,7 +182,28 @@
     "local": "로컬",
     "noMatch": "검색과 일치하는 사용자가 없습니다.",
     "noUsers": "아직 사용자가 없습니다.",
-    "deleteConfirm": "이 사용자를 삭제하시겠습니까?"
+    "deleteConfirm": "이 사용자를 삭제하시겠습니까?",
+    "activity": {
+      "details": "활동 세부사항",
+      "twoFactor": "2FA",
+      "noTwoFactor": "2FA 없음",
+      "twoFactorEnabled": "2단계 인증 활성화됨",
+      "twoFactorDisabled": "2단계 인증 미설정",
+      "twoFactorStatus": "2FA 상태",
+      "lastActivity": "최근 활동 {{when}} {{app}}",
+      "onObligate": "Obligate에서",
+      "onApp": "{{app}}에서",
+      "neverLoggedIn": "로그인 기록 없음",
+      "justNow": "방금",
+      "minutesAgo": "{{count}}분 전",
+      "hoursAgo": "{{count}}시간 전",
+      "daysAgo": "{{count}}일 전",
+      "obligateLogin": "마지막 Obligate 로그인",
+      "accountCreated": "계정 생성일",
+      "perAppHeader": "앱별 마지막 로그인",
+      "noAppLogins": "아직 SSO 로그인이 없습니다.",
+      "never": "없음"
+    }
   },
   "groups": {
     "title": "권한 그룹",
