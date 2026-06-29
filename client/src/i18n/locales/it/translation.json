@@ -203,7 +203,13 @@
       "perAppHeader": "Ultimo accesso per app",
       "noAppLogins": "Nessun accesso SSO.",
       "never": "mai"
-    }
+    },
+    "groupsRequired": "Gruppi di permessi (obbligatorio)",
+    "groupsOptional": "Gruppi di permessi (facoltativo)",
+    "noGroupsAvailable": "Nessun gruppo disponibile.",
+    "errorGroupRequired": "Devi selezionare almeno un gruppo.",
+    "outOfScopeAction": "Fuori dal tuo ambito — questo utente appartiene a un gruppo che non gestisci",
+    "outOfScopeGroup": "Gruppo fuori dal tuo ambito — sola lettura"
   },
   "groups": {
     "title": "Gruppi di permessi",
@@ -226,7 +232,13 @@
     "noTeam": "(nessun team)",
     "appConnectionError": "Impossibile connettersi all'app. Verifica che sia in esecuzione e che la chiave API sia configurata.",
     "noGroups": "Nessun gruppo di permessi ancora.",
-    "deleteConfirm": "Sei sicuro di voler eliminare questo gruppo?"
+    "deleteConfirm": "Sei sicuro di voler eliminare questo gruppo?",
+    "rename": "Rinomina",
+    "managers": "Manager",
+    "editManagers": "Modifica manager",
+    "noManagers": "Nessun manager per questo gruppo.",
+    "noEligibleManagers": "Nessun utente idoneo (admin esclusi).",
+    "youManage": "Tu gestisci"
   },
   "settings": {
     "title": "Impostazioni",
@@ -258,6 +270,8 @@
     "permissionGroups": "Gruppi di permessi",
     "directories": "Directory",
     "settings": "Impostazioni",
-    "myAccount": "Il mio account"
+    "myAccount": "Il mio account",
+    "administration": "Amministrazione",
+    "management": "Gestione"
   }
 }

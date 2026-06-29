@@ -14,6 +14,7 @@ interface User {
   preferredTheme: string;
   profilePhotoUrl: string | null;
   enrollmentVersion: number;
+  isGroupManager?: boolean;
 }
 
 interface AuthState {

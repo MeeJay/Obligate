@@ -183,6 +183,12 @@
     "noMatch": "Aucun utilisateur ne correspond à votre recherche.",
     "noUsers": "Aucun utilisateur pour le moment.",
     "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
+    "groupsRequired": "Groupes (obligatoire)",
+    "groupsOptional": "Groupes (facultatif)",
+    "noGroupsAvailable": "Aucun groupe disponible.",
+    "errorGroupRequired": "Vous devez sélectionner au moins un groupe.",
+    "outOfScopeAction": "Hors de votre périmètre — cet utilisateur a un groupe que vous ne gérez pas",
+    "outOfScopeGroup": "Groupe hors de votre périmètre — lecture seule",
     "activity": {
       "details": "Détails d'activité",
       "twoFactor": "2FA",
@@ -227,7 +233,13 @@
     "noTeamAccess": "Aucun accès aux équipes — toutes les équipes sont restreintes par défaut",
     "appConnectionError": "Impossible de se connecter à l'application. Vérifiez qu'elle est en cours d'exécution et que la clé API est configurée.",
     "noGroups": "Aucun groupe de permissions pour le moment.",
-    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce groupe ?"
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce groupe ?",
+    "rename": "Renommer",
+    "managers": "Managers",
+    "editManagers": "Modifier les managers",
+    "noManagers": "Aucun manager pour ce groupe.",
+    "noEligibleManagers": "Aucun utilisateur éligible (admins exclus).",
+    "youManage": "Vous gérez"
   },
   "settings": {
     "title": "Paramètres",
@@ -259,6 +271,8 @@
     "permissionGroups": "Groupes de permissions",
     "directories": "Annuaires",
     "settings": "Paramètres",
-    "myAccount": "Mon compte"
+    "myAccount": "Mon compte",
+    "administration": "Administration",
+    "management": "Gestion"
   }
 }

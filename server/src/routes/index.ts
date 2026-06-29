@@ -5,7 +5,7 @@ import { adminRoutes } from './admin.routes';
 import { apiRoutes } from './api.routes';
 import { accountRoutes } from './account.routes';
 import { twoFactorRoutes } from './twoFactor.routes';
-import { requireAuth, requireAdmin } from '../middleware/auth';
+import { requireAuth } from '../middleware/auth';
 
 export const routes = Router();
 
@@ -25,5 +25,8 @@ routes.use('/devices', apiRoutes);
 // User dashboard (requires auth)
 routes.use('/account', requireAuth, accountRoutes);
 
-// Admin routes (requires admin)
-routes.use('/admin', requireAdmin, adminRoutes);
+// Admin + manager routes (auth required; per-handler admin/manager gating).
+// Most endpoints are admin-only via the requireAdmin helper inside admin.routes;
+// a few user-management endpoints accept any user with manager rights on the
+// appropriate groups.
+routes.use('/admin', requireAuth, adminRoutes);

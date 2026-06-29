@@ -4,14 +4,28 @@ import { authService } from '../services/auth.service';
 import { permissionGroupService } from '../services/permissionGroup.service';
 import { configService } from '../services/config.service';
 import { ssoSyncService } from '../services/ssoSync.service';
+import { requireAdmin } from '../middleware/auth';
 import { db } from '../db';
 import { logger } from '../utils/logger';
 
 export const adminRoutes = Router();
 
-// ── Connected Apps CRUD ──────────────────────────────────────────────────────
+// Routes are mounted under /admin with requireAuth only; admin-only handlers
+// individually use the requireAdmin middleware. A few user-management
+// endpoints accept non-admin users who have group-manager rights covering
+// the target user — those endpoints do their own scope check inline.
 
-adminRoutes.get('/apps', async (_req, res) => {
+function isAdmin(req: any): boolean {
+  return req.session?.role === 'admin';
+}
+
+async function canActOnUser(req: any, targetUserId: number): Promise<boolean> {
+  return permissionGroupService.canActOnUser(req.session.userId, req.session.role, targetUserId);
+}
+
+// ── Connected Apps CRUD (admin only) ─────────────────────────────────────────
+
+adminRoutes.get('/apps', requireAdmin, async (_req, res) => {
   try {
     const apps = await appService.listApps();
     res.json({ success: true, data: apps });
@@ -21,11 +35,10 @@ adminRoutes.get('/apps', async (_req, res) => {
   }
 });
 
-adminRoutes.post('/apps', async (req, res) => {
+adminRoutes.post('/apps', requireAdmin, async (req, res) => {
   try {
     const { appType, name, baseUrl, icon, color } = req.body;
     const app = await appService.createApp({ appType, name, baseUrl, icon, color });
-    // Return the API key ONCE on creation
     res.status(201).json({ success: true, data: app });
   } catch (err) {
     logger.error(err, 'Failed to create app');
@@ -33,7 +46,7 @@ adminRoutes.post('/apps', async (req, res) => {
   }
 });
 
-adminRoutes.put('/apps/:id', async (req, res) => {
+adminRoutes.put('/apps/:id', requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const app = await appService.updateApp(id, req.body);
@@ -48,7 +61,7 @@ adminRoutes.put('/apps/:id', async (req, res) => {
   }
 });
 
-adminRoutes.delete('/apps/:id', async (req, res) => {
+adminRoutes.delete('/apps/:id', requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const deleted = await appService.deleteApp(id);
@@ -63,7 +76,7 @@ adminRoutes.delete('/apps/:id', async (req, res) => {
   }
 });
 
-adminRoutes.get('/apps/:id/dashboard-stats', async (req, res) => {
+adminRoutes.get('/apps/:id/dashboard-stats', requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const app = await db('connected_apps').where({ id, is_active: true }).first() as {
@@ -86,7 +99,7 @@ adminRoutes.get('/apps/:id/dashboard-stats', async (req, res) => {
   }
 });
 
-adminRoutes.get('/apps/:id/remote-info', async (req, res) => {
+adminRoutes.get('/apps/:id/remote-info', requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const app = await db('connected_apps').where({ id, is_active: true }).first() as {
@@ -106,7 +119,7 @@ adminRoutes.get('/apps/:id/remote-info', async (req, res) => {
   }
 });
 
-adminRoutes.post('/apps/:id/regenerate-key', async (req, res) => {
+adminRoutes.post('/apps/:id/regenerate-key', requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const newKey = await appService.regenerateApiKey(id);
@@ -121,30 +134,50 @@ adminRoutes.post('/apps/:id/regenerate-key', async (req, res) => {
   }
 });
 
-// ── Users CRUD ───────────────────────────────────────────────────────────────
+// ── Users CRUD (admin OR group manager with scope) ───────────────────────────
 
-adminRoutes.get('/users', async (_req, res) => {
+adminRoutes.get('/users', async (req: any, res) => {
   try {
     const [users, userGroups, activity] = await Promise.all([
       authService.listUsers(),
       permissionGroupService.getAllUserGroupAssignments(),
       authService.getAggregatedActivity(),
     ]);
+
+    let scopedUsers = users;
+    let actionableMap: Record<number, boolean> = {};
+    if (!isAdmin(req)) {
+      const [visible, actionable] = await Promise.all([
+        permissionGroupService.getVisibleUserIds(req.session.userId),
+        permissionGroupService.getActionableUserIds(req.session.userId),
+      ]);
+      const visibleSet = new Set(visible);
+      const actionableSet = new Set(actionable);
+      scopedUsers = users.filter(u => visibleSet.has(u.id));
+      actionableMap = Object.fromEntries(scopedUsers.map(u => [u.id, actionableSet.has(u.id)]));
+    } else {
+      actionableMap = Object.fromEntries(users.map(u => [u.id, true]));
+    }
+
     const activityMap: Record<number, { lastActivityAt: string; lastActivityApp: string } | null> = {};
     activity.forEach((v, k) => { activityMap[k] = v; });
-    res.json({ success: true, data: users, userGroups, activity: activityMap });
+
+    res.json({ success: true, data: scopedUsers, userGroups, activity: activityMap, actionable: actionableMap });
   } catch (err) {
     logger.error(err, 'Failed to list users');
     res.status(500).json({ success: false, error: 'Failed to list users' });
   }
 });
 
-// Detailed activity for the expandable panel on each user row.
-adminRoutes.get('/users/:id/activity', async (req, res) => {
+adminRoutes.get('/users/:id/activity', async (req: any, res) => {
   try {
     const userId = parseInt(req.params.id, 10);
     if (!Number.isFinite(userId)) {
       res.status(400).json({ success: false, error: 'Invalid user id' });
+      return;
+    }
+    if (!isAdmin(req) && !(await canActOnUser(req, userId))) {
+      res.status(403).json({ success: false, error: 'Out of scope' });
       return;
     }
 
@@ -195,10 +228,38 @@ adminRoutes.get('/users/:id/activity', async (req, res) => {
   }
 });
 
-adminRoutes.post('/users', async (req, res) => {
+adminRoutes.post('/users', async (req: any, res) => {
   try {
-    const { username, email, displayName, password, role } = req.body;
+    const { username, email, displayName, password, role, groupIds } = req.body as {
+      username: string; email?: string; displayName?: string; password?: string;
+      role?: 'admin' | 'user'; groupIds?: number[];
+    };
+
+    const requestedGroupIds = Array.isArray(groupIds) ? groupIds : [];
+
+    if (!isAdmin(req)) {
+      // Manager: cannot create admin users, must provide ≥1 group, all groups must be managed.
+      if (role === 'admin') {
+        res.status(403).json({ success: false, error: 'Only admins can create admin users' });
+        return;
+      }
+      if (requestedGroupIds.length === 0) {
+        res.status(400).json({ success: false, error: 'At least one permission group is required' });
+        return;
+      }
+      const managed = new Set(await permissionGroupService.getManagedGroupIds(req.session.userId));
+      if (!requestedGroupIds.every(gid => managed.has(gid))) {
+        res.status(403).json({ success: false, error: 'One or more groups are outside your management scope' });
+        return;
+      }
+    }
+
     const user = await authService.createUser({ username, email, displayName, password, role });
+
+    for (const gid of requestedGroupIds) {
+      await permissionGroupService.assignUserToGroup(user.id, gid);
+    }
+
     res.status(201).json({ success: true, data: user });
   } catch (err) {
     logger.error(err, 'Failed to create user');
@@ -206,23 +267,37 @@ adminRoutes.post('/users', async (req, res) => {
   }
 });
 
-adminRoutes.put('/users/:id', async (req, res) => {
+adminRoutes.put('/users/:id', async (req: any, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const before = await authService.getUserById(id);
+    if (!before) { res.status(404).json({ success: false, error: 'User not found' }); return; }
+
+    if (!isAdmin(req)) {
+      if (!(await canActOnUser(req, id))) {
+        res.status(403).json({ success: false, error: 'Out of scope' });
+        return;
+      }
+      // Managers can only toggle isActive; no role/email/displayName edits.
+      const allowed: Record<string, unknown> = {};
+      if (req.body.isActive !== undefined) allowed.isActive = req.body.isActive;
+      if (Object.keys(allowed).length === 0) {
+        res.status(403).json({ success: false, error: 'Managers can only toggle active status' });
+        return;
+      }
+      req.body = allowed;
+    }
+
     const user = await authService.updateUser(id, req.body);
     if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
 
-    // Push SSO state changes to all connected apps
-    if (before) {
-      if (before.isActive && !user.isActive) {
-        ssoSyncService.pushUserChange(id, 'deactivate').catch(() => {});
-      } else if (!before.isActive && user.isActive) {
-        ssoSyncService.pushUserChange(id, 'reactivate').catch(() => {});
-      }
-      if (before.role !== user.role) {
-        ssoSyncService.pushUserChange(id, 'update-role', { role: user.role }).catch(() => {});
-      }
+    if (before.isActive && !user.isActive) {
+      ssoSyncService.pushUserChange(id, 'deactivate').catch(() => {});
+    } else if (!before.isActive && user.isActive) {
+      ssoSyncService.pushUserChange(id, 'reactivate').catch(() => {});
+    }
+    if (before.role !== user.role) {
+      ssoSyncService.pushUserChange(id, 'update-role', { role: user.role }).catch(() => {});
     }
 
     res.json({ success: true, data: user });
@@ -232,9 +307,13 @@ adminRoutes.put('/users/:id', async (req, res) => {
   }
 });
 
-adminRoutes.put('/users/:id/password', async (req, res) => {
+adminRoutes.put('/users/:id/password', async (req: any, res) => {
   try {
     const id = parseInt(req.params.id, 10);
+    if (!isAdmin(req) && !(await canActOnUser(req, id))) {
+      res.status(403).json({ success: false, error: 'Out of scope' });
+      return;
+    }
     const { password } = req.body as { password?: string };
     const cfg = await configService.getAll();
     if (!password || password.length < cfg.minPasswordLength) { res.status(400).json({ success: false, error: `Password too short (min ${cfg.minPasswordLength} chars)` }); return; }
@@ -246,18 +325,16 @@ adminRoutes.put('/users/:id/password', async (req, res) => {
   }
 });
 
-adminRoutes.delete('/users/:id', async (req, res) => {
+adminRoutes.delete('/users/:id', requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (id === req.session.userId) { res.status(400).json({ success: false, error: 'Cannot delete yourself' }); return; }
 
-    // Push delete to all connected apps BEFORE deleting locally (need user_app_links still intact)
     await ssoSyncService.pushUserChange(id, 'delete');
 
     const ok = await authService.deleteUser(id);
     if (!ok) { res.status(404).json({ success: false, error: 'User not found' }); return; }
 
-    // Clean up remaining app links and related data
     await db('user_app_links').where({ user_id: id }).del();
     await db('user_permission_groups').where({ user_id: id }).del();
 
@@ -269,17 +346,40 @@ adminRoutes.delete('/users/:id', async (req, res) => {
 
 // ── Permission Groups CRUD ───────────────────────────────────────────────────
 
+// Listing is open to managers (they need to see their managed groups in the UI).
+// Mutations are admin-only.
 adminRoutes.get('/permission-groups', async (_req, res) => {
   try {
-    const groups = await permissionGroupService.listGroups();
-    res.json({ success: true, data: groups });
+    const [groups, managers] = await Promise.all([
+      permissionGroupService.listGroups(),
+      permissionGroupService.getAllGroupManagers(),
+    ]);
+    res.json({ success: true, data: groups, managers });
   } catch (err) {
     logger.error(err, 'Failed to list permission groups');
     res.status(500).json({ success: false, error: 'Failed to list groups' });
   }
 });
 
-adminRoutes.post('/permission-groups', async (req, res) => {
+// "My managed groups" — used by the manager's user-create form to populate
+// the (mandatory) group picker.
+adminRoutes.get('/my-managed-groups', async (req: any, res) => {
+  try {
+    if (isAdmin(req)) {
+      const groups = await permissionGroupService.listGroups();
+      res.json({ success: true, data: groups });
+      return;
+    }
+    const ids = await permissionGroupService.getManagedGroupIds(req.session.userId);
+    if (ids.length === 0) { res.json({ success: true, data: [] }); return; }
+    const groups = await permissionGroupService.listGroups();
+    res.json({ success: true, data: groups.filter(g => ids.includes(g.id)) });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to list managed groups' });
+  }
+});
+
+adminRoutes.post('/permission-groups', requireAdmin, async (req: any, res) => {
   try {
     const group = await permissionGroupService.createGroup({
       ...req.body,
@@ -292,7 +392,7 @@ adminRoutes.post('/permission-groups', async (req, res) => {
   }
 });
 
-adminRoutes.put('/permission-groups/:id', async (req, res) => {
+adminRoutes.put('/permission-groups/:id', requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const group = await permissionGroupService.updateGroup(id, req.body);
@@ -306,7 +406,7 @@ adminRoutes.put('/permission-groups/:id', async (req, res) => {
   }
 });
 
-adminRoutes.delete('/permission-groups/:id', async (req, res) => {
+adminRoutes.delete('/permission-groups/:id', requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const deleted = await permissionGroupService.deleteGroup(id);
@@ -320,9 +420,36 @@ adminRoutes.delete('/permission-groups/:id', async (req, res) => {
   }
 });
 
-// ── Permission Group Mappings ────────────────────────────────────────────────
+// ── Permission Group Managers (admin only) ───────────────────────────────────
 
-adminRoutes.get('/permission-groups/:id/mappings', async (req, res) => {
+adminRoutes.get('/permission-groups/:id/managers', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const userIds = await permissionGroupService.getManagersForGroup(id);
+    res.json({ success: true, data: userIds });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to list managers' });
+  }
+});
+
+adminRoutes.put('/permission-groups/:id/managers', requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { userIds } = req.body as { userIds?: number[] };
+    if (!Array.isArray(userIds)) {
+      res.status(400).json({ success: false, error: 'userIds array required' });
+      return;
+    }
+    await permissionGroupService.setManagers(id, userIds);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Failed to set managers' });
+  }
+});
+
+// ── Permission Group Mappings (admin only) ───────────────────────────────────
+
+adminRoutes.get('/permission-groups/:id/mappings', requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const mappings = await permissionGroupService.getMappingsForGroup(id);
@@ -332,7 +459,7 @@ adminRoutes.get('/permission-groups/:id/mappings', async (req, res) => {
   }
 });
 
-adminRoutes.post('/permission-groups/:id/mappings', async (req, res) => {
+adminRoutes.post('/permission-groups/:id/mappings', requireAdmin, async (req, res) => {
   try {
     const groupId = parseInt(req.params.id, 10);
     const mapping = await permissionGroupService.addMapping({ groupId, ...req.body });
@@ -342,7 +469,7 @@ adminRoutes.post('/permission-groups/:id/mappings', async (req, res) => {
   }
 });
 
-adminRoutes.put('/permission-groups/:gid/mappings/:mid', async (req, res) => {
+adminRoutes.put('/permission-groups/:gid/mappings/:mid', requireAdmin, async (req, res) => {
   try {
     const mid = parseInt(req.params.mid, 10);
     const { appRole } = req.body as { appRole?: string };
@@ -354,7 +481,7 @@ adminRoutes.put('/permission-groups/:gid/mappings/:mid', async (req, res) => {
   }
 });
 
-adminRoutes.delete('/permission-groups/:gid/mappings/:mid', async (req, res) => {
+adminRoutes.delete('/permission-groups/:gid/mappings/:mid', requireAdmin, async (req, res) => {
   try {
     const mid = parseInt(req.params.mid, 10);
     const deleted = await permissionGroupService.deleteMapping(mid);
@@ -368,11 +495,15 @@ adminRoutes.delete('/permission-groups/:gid/mappings/:mid', async (req, res) => 
   }
 });
 
-// ── User ↔ Group assignments ─────────────────────────────────────────────────
+// ── User ↔ Group assignments (admin or manager-with-scope) ───────────────────
 
-adminRoutes.get('/users/:id/groups', async (req, res) => {
+adminRoutes.get('/users/:id/groups', async (req: any, res) => {
   try {
     const userId = parseInt(req.params.id, 10);
+    if (!isAdmin(req) && !(await canActOnUser(req, userId))) {
+      res.status(403).json({ success: false, error: 'Out of scope' });
+      return;
+    }
     const groups = await permissionGroupService.getGroupsForUser(userId);
     res.json({ success: true, data: groups });
   } catch (err) {
@@ -380,10 +511,24 @@ adminRoutes.get('/users/:id/groups', async (req, res) => {
   }
 });
 
-adminRoutes.post('/users/:uid/groups/:gid', async (req, res) => {
+adminRoutes.post('/users/:uid/groups/:gid', async (req: any, res) => {
   try {
     const userId = parseInt(req.params.uid, 10);
     const groupId = parseInt(req.params.gid, 10);
+
+    if (!isAdmin(req)) {
+      // Manager: target must already be entirely in scope AND the new group must be managed.
+      if (!(await canActOnUser(req, userId))) {
+        res.status(403).json({ success: false, error: 'Out of scope' });
+        return;
+      }
+      const managed = await permissionGroupService.getManagedGroupIds(req.session.userId);
+      if (!managed.includes(groupId)) {
+        res.status(403).json({ success: false, error: 'Group is outside your management scope' });
+        return;
+      }
+    }
+
     await permissionGroupService.assignUserToGroup(userId, groupId);
     res.json({ success: true });
   } catch (err) {
@@ -391,10 +536,30 @@ adminRoutes.post('/users/:uid/groups/:gid', async (req, res) => {
   }
 });
 
-adminRoutes.delete('/users/:uid/groups/:gid', async (req, res) => {
+adminRoutes.delete('/users/:uid/groups/:gid', async (req: any, res) => {
   try {
     const userId = parseInt(req.params.uid, 10);
     const groupId = parseInt(req.params.gid, 10);
+
+    if (!isAdmin(req)) {
+      if (!(await canActOnUser(req, userId))) {
+        res.status(403).json({ success: false, error: 'Out of scope' });
+        return;
+      }
+      const managed = await permissionGroupService.getManagedGroupIds(req.session.userId);
+      if (!managed.includes(groupId)) {
+        res.status(403).json({ success: false, error: 'Group is outside your management scope' });
+        return;
+      }
+      // Prevent a manager from removing the user's last managed group — that
+      // would orphan the user (no groups → no one can act on them but admin).
+      const userGroups = await permissionGroupService.getGroupsForUser(userId);
+      if (userGroups.length === 1 && userGroups[0].id === groupId) {
+        res.status(400).json({ success: false, error: 'Cannot remove the last group — only an admin can fully unassign a user' });
+        return;
+      }
+    }
+
     await permissionGroupService.removeUserFromGroup(userId, groupId);
     res.json({ success: true });
   } catch (err) {
@@ -402,12 +567,11 @@ adminRoutes.delete('/users/:uid/groups/:gid', async (req, res) => {
   }
 });
 
-// ── App Settings ─────────────────────────────────────────────────────────────
+// ── App Settings (admin only) ────────────────────────────────────────────────
 
-adminRoutes.get('/settings', async (_req, res) => {
+adminRoutes.get('/settings', requireAdmin, async (_req, res) => {
   try {
     const config = await configService.getAll();
-    // Never expose SMTP password to the client — just indicate if set
     res.json({ success: true, data: { ...config, smtpPass: config.smtpPass ? '••••••••' : '' } });
   } catch (err) {
     logger.error(err, 'Failed to get settings');
@@ -415,10 +579,9 @@ adminRoutes.get('/settings', async (_req, res) => {
   }
 });
 
-adminRoutes.put('/settings', async (req, res) => {
+adminRoutes.put('/settings', requireAdmin, async (req, res) => {
   try {
     const patch = req.body as Record<string, string>;
-    // Don't overwrite password with the masked placeholder
     if (patch.smtpPass === '••••••••') delete patch.smtpPass;
     const config = await configService.update(patch);
     res.json({ success: true, data: { ...config, smtpPass: config.smtpPass ? '••••••••' : '' } });

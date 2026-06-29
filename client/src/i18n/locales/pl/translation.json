@@ -203,7 +203,13 @@
       "perAppHeader": "Ostatnie logowanie wg aplikacji",
       "noAppLogins": "Brak logowań SSO.",
       "never": "nigdy"
-    }
+    },
+    "groupsRequired": "Grupy uprawnień (wymagane)",
+    "groupsOptional": "Grupy uprawnień (opcjonalne)",
+    "noGroupsAvailable": "Brak dostępnych grup.",
+    "errorGroupRequired": "Musisz wybrać co najmniej jedną grupę.",
+    "outOfScopeAction": "Poza Twoim zakresem — ten użytkownik należy do grupy, którą nie zarządzasz",
+    "outOfScopeGroup": "Grupa poza Twoim zakresem — tylko do odczytu"
   },
   "groups": {
     "title": "Grupy uprawnień",
@@ -226,7 +232,13 @@
     "noTeam": "(bez zespołu)",
     "appConnectionError": "Nie można połączyć się z aplikacją. Sprawdź, czy działa i czy klucz API jest skonfigurowany.",
     "noGroups": "Brak grup uprawnień.",
-    "deleteConfirm": "Czy na pewno chcesz usunąć tę grupę?"
+    "deleteConfirm": "Czy na pewno chcesz usunąć tę grupę?",
+    "rename": "Zmień nazwę",
+    "managers": "Menedżerowie",
+    "editManagers": "Edytuj menedżerów",
+    "noManagers": "Brak menedżerów dla tej grupy.",
+    "noEligibleManagers": "Brak kwalifikujących się użytkowników (z wyłączeniem adminów).",
+    "youManage": "Zarządzasz"
   },
   "settings": {
     "title": "Ustawienia",
@@ -258,6 +270,8 @@
     "permissionGroups": "Grupy uprawnień",
     "directories": "Katalogi",
     "settings": "Ustawienia",
-    "myAccount": "Moje konto"
+    "myAccount": "Moje konto",
+    "administration": "Administracja",
+    "management": "Zarządzanie"
   }
 }

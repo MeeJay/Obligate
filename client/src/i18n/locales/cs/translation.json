@@ -203,7 +203,13 @@
       "perAppHeader": "Poslední přihlášení podle aplikace",
       "noAppLogins": "Zatím žádné SSO přihlášení.",
       "never": "nikdy"
-    }
+    },
+    "groupsRequired": "Skupiny oprávnění (povinné)",
+    "groupsOptional": "Skupiny oprávnění (nepovinné)",
+    "noGroupsAvailable": "Žádné dostupné skupiny.",
+    "errorGroupRequired": "Musíte vybrat alespoň jednu skupinu.",
+    "outOfScopeAction": "Mimo váš rozsah — tento uživatel patří do skupiny, kterou nespravujete",
+    "outOfScopeGroup": "Skupina mimo váš rozsah — jen pro čtení"
   },
   "groups": {
     "title": "Skupiny oprávnění",
@@ -226,7 +232,13 @@
     "noTeam": "(žádný tým)",
     "appConnectionError": "Nepodařilo se připojit k aplikaci. Zkontrolujte, zda běží a zda je API klíč nakonfigurován.",
     "noGroups": "Zatím žádné skupiny oprávnění.",
-    "deleteConfirm": "Opravdu chcete smazat tuto skupinu?"
+    "deleteConfirm": "Opravdu chcete smazat tuto skupinu?",
+    "rename": "Přejmenovat",
+    "managers": "Správci",
+    "editManagers": "Upravit správce",
+    "noManagers": "Žádní správci pro tuto skupinu.",
+    "noEligibleManagers": "Žádní vhodní uživatelé (admini vyloučeni).",
+    "youManage": "Spravujete"
   },
   "settings": {
     "title": "Nastavení",
@@ -258,6 +270,8 @@
     "permissionGroups": "Skupiny oprávnění",
     "directories": "Adresáře",
     "settings": "Nastavení",
-    "myAccount": "Můj účet"
+    "myAccount": "Můj účet",
+    "administration": "Administrace",
+    "management": "Správa"
   }
 }

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Shield, User, Pencil, Trash2, X, Check, Key, ShieldCheck, Search, ChevronDown, KeyRound, Clock } from 'lucide-react';
+import { Plus, Shield, User, Pencil, Trash2, Check, Key, ShieldCheck, Search, ChevronDown, KeyRound, Clock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import apiClient from '../api/client';
+import { useAuthStore } from '../store/authStore';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import type { ObligateUser, PermissionGroup } from '@obligate/shared';
@@ -52,14 +53,18 @@ function formatAbsolute(iso: string, locale: string): string {
 export function UsersPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language;
+  const { user: currentUser } = useAuthStore();
+  const isAdmin = currentUser?.role === 'admin';
   const [users, setUsers] = useState<ObligateUser[]>([]);
   const [groups, setGroups] = useState<PermissionGroup[]>([]);
+  const [managedGroups, setManagedGroups] = useState<PermissionGroup[]>([]);
+  const [actionableMap, setActionableMap] = useState<Record<number, boolean>>({});
   const [userGroupMap, setUserGroupMap] = useState<Record<number, PermissionGroup[]>>({});
   const [activityMap, setActivityMap] = useState<Record<number, ActivitySummary | null>>({});
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [activityCache, setActivityCache] = useState<Record<number, ActivityDetail>>({});
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ username: '', email: '', displayName: '', password: '', role: 'user' as 'admin' | 'user' });
+  const [form, setForm] = useState({ username: '', email: '', displayName: '', password: '', role: 'user' as 'admin' | 'user', groupIds: [] as number[] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -75,21 +80,24 @@ export function UsersPage() {
   const [pwUserId, setPwUserId] = useState<number | null>(null);
   const [newPassword, setNewPassword] = useState('');
 
-  // Group assignment
-  const [groupUserId, setGroupUserId] = useState<number | null>(null);
-  const [userGroups, setUserGroups] = useState<PermissionGroup[]>([]);
+  // Group assignment — inline, expanded per user
+  const [groupPanelUserId, setGroupPanelUserId] = useState<number | null>(null);
+  const [groupPanelGroups, setGroupPanelGroups] = useState<PermissionGroup[]>([]);
 
   const load = async () => {
-    const [u, g] = await Promise.all([
+    const [u, g, mg] = await Promise.all([
       apiClient.get('/admin/users'),
       apiClient.get('/admin/permission-groups'),
+      apiClient.get('/admin/my-managed-groups'),
     ]);
     if (u.data.success) {
       setUsers(u.data.data);
       if (u.data.userGroups) setUserGroupMap(u.data.userGroups);
       if (u.data.activity) setActivityMap(u.data.activity);
+      if (u.data.actionable) setActionableMap(u.data.actionable);
     }
     if (g.data.success) setGroups(g.data.data);
+    if (mg.data.success) setManagedGroups(mg.data.data);
   };
 
   const toggleExpand = async (userId: number) => {
@@ -131,16 +139,34 @@ export function UsersPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // A non-admin manager MUST pick at least one of their managed groups.
+    // For admins, group selection is optional (kept as a convenience) but the
+    // server now also accepts a groupIds[] field — admins can skip it.
+    if (!isAdmin && form.groupIds.length === 0) {
+      setError(t('users.errorGroupRequired'));
+      return;
+    }
+
     setSaving(true);
     try {
       const { data } = await apiClient.post('/admin/users', form);
       if (data.success) {
         setShowForm(false);
-        setForm({ username: '', email: '', displayName: '', password: '', role: 'user' });
+        setForm({ username: '', email: '', displayName: '', password: '', role: 'user', groupIds: [] });
         load();
       } else setError(data.error || 'Failed');
     } catch { setError('Connection error'); }
     finally { setSaving(false); }
+  };
+
+  const toggleFormGroup = (groupId: number) => {
+    setForm(f => ({
+      ...f,
+      groupIds: f.groupIds.includes(groupId)
+        ? f.groupIds.filter(id => id !== groupId)
+        : [...f.groupIds, groupId],
+    }));
   };
 
   const startEdit = (u: ObligateUser) => {
@@ -174,20 +200,25 @@ export function UsersPage() {
   };
 
   const openGroups = async (userId: number) => {
-    setGroupUserId(userId);
+    if (groupPanelUserId === userId) {
+      setGroupPanelUserId(null);
+      return;
+    }
+    setGroupPanelUserId(userId);
+    setGroupPanelGroups([]);
     const { data } = await apiClient.get(`/admin/users/${userId}/groups`);
-    if (data.success) setUserGroups(data.data);
+    if (data.success) setGroupPanelGroups(data.data);
   };
 
   const toggleGroup = async (groupId: number, assigned: boolean) => {
-    if (!groupUserId) return;
+    if (!groupPanelUserId) return;
     if (assigned) {
-      await apiClient.delete(`/admin/users/${groupUserId}/groups/${groupId}`);
+      await apiClient.delete(`/admin/users/${groupPanelUserId}/groups/${groupId}`);
     } else {
-      await apiClient.post(`/admin/users/${groupUserId}/groups/${groupId}`);
+      await apiClient.post(`/admin/users/${groupPanelUserId}/groups/${groupId}`);
     }
-    const { data } = await apiClient.get(`/admin/users/${groupUserId}/groups`);
-    if (data.success) setUserGroups(data.data);
+    const { data } = await apiClient.get(`/admin/users/${groupPanelUserId}/groups`);
+    if (data.success) setGroupPanelGroups(data.data);
     load();
   };
 
@@ -238,13 +269,43 @@ export function UsersPage() {
               <Input label={t('users.displayName')} value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} />
               <Input label={t('users.password')} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required />
             </div>
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-text-secondary">{t('users.role')}</label>
-              <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as 'admin' | 'user' }))}
-                className="w-full rounded-md border border-border bg-bg-tertiary px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent">
-                <option value="user">{t('common.user')}</option>
-                <option value="admin">{t('common.admin')}</option>
-              </select>
+            {isAdmin && (
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-text-secondary">{t('users.role')}</label>
+                <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as 'admin' | 'user' }))}
+                  className="w-full rounded-md border border-border bg-bg-tertiary px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent">
+                  <option value="user">{t('common.user')}</option>
+                  <option value="admin">{t('common.admin')}</option>
+                </select>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-text-secondary">
+                {isAdmin ? t('users.groupsOptional') : t('users.groupsRequired')}
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {managedGroups.map(g => {
+                  const selected = form.groupIds.includes(g.id);
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => toggleFormGroup(g.id)}
+                      className={cn(
+                        'inline-flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors',
+                        selected
+                          ? 'bg-accent/10 text-accent border-accent/40'
+                          : 'bg-bg-tertiary text-text-secondary border-border hover:bg-bg-hover',
+                      )}
+                    >
+                      <ShieldCheck size={11} />{g.name}
+                    </button>
+                  );
+                })}
+                {managedGroups.length === 0 && (
+                  <p className="text-xs text-text-muted italic">{t('users.noGroupsAvailable')}</p>
+                )}
+              </div>
             </div>
             {error && <div className="bg-status-down-bg border border-status-down/30 rounded-md p-3 text-sm text-status-down">{error}</div>}
             <div className="flex gap-2">
@@ -267,37 +328,6 @@ export function UsersPage() {
         </div>
       )}
 
-      {/* Group assignment panel */}
-      {groupUserId && (
-        <div className="bg-bg-secondary border border-border rounded-lg p-5 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-medium text-text-primary">
-              {t('users.permissionGroupsFor', { name: users.find(u => u.id === groupUserId)?.username })}
-            </h2>
-            <button onClick={() => setGroupUserId(null)} className="text-text-muted hover:text-text-primary"><X size={18} /></button>
-          </div>
-          <div className="space-y-1.5">
-            {groups.map(g => {
-              const assigned = userGroups.some(ug => ug.id === g.id);
-              return (
-                <button
-                  key={g.id}
-                  onClick={() => toggleGroup(g.id, assigned)}
-                  className={cn(
-                    'w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors',
-                    assigned ? 'bg-accent/10 text-accent border border-accent/30' : 'bg-bg-tertiary text-text-secondary hover:bg-bg-hover',
-                  )}
-                >
-                  <span>{g.name}</span>
-                  {assigned && <Check size={14} />}
-                </button>
-              );
-            })}
-            {groups.length === 0 && <p className="text-xs text-text-muted">{t('users.noGroupsCreated')}</p>}
-          </div>
-        </div>
-      )}
-
       {/* Users list */}
       <div className="space-y-2">
         {filteredUsers.map(u => {
@@ -305,6 +335,8 @@ export function UsersPage() {
           const activity = activityMap[u.id] ?? null;
           const isExpanded = expanded.has(u.id);
           const detail = activityCache[u.id];
+          const canAct = isAdmin || (actionableMap[u.id] ?? false);
+          const showGroupPanel = groupPanelUserId === u.id;
           return (
             <div key={u.id} className="bg-bg-secondary border border-border rounded-lg overflow-hidden">
               <div className="px-5 py-4">
@@ -385,14 +417,21 @@ export function UsersPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <button onClick={() => toggleActive(u)}
-                      className={cn('text-xs px-2 py-1 rounded', u.isActive ? 'text-status-up bg-status-up-bg' : 'text-status-down bg-status-down-bg')}>
+                    <button
+                      onClick={() => canAct && toggleActive(u)}
+                      disabled={!canAct}
+                      title={canAct ? undefined : t('users.outOfScopeAction')}
+                      className={cn(
+                        'text-xs px-2 py-1 rounded',
+                        u.isActive ? 'text-status-up bg-status-up-bg' : 'text-status-down bg-status-down-bg',
+                        !canAct && 'opacity-40 cursor-not-allowed',
+                      )}>
                       {u.isActive ? t('users.active') : t('common.disabled')}
                     </button>
-                    <Button size="sm" variant="ghost" onClick={() => openGroups(u.id)} title={t('users.groups')}><ShieldCheck size={14} /></Button>
-                    <Button size="sm" variant="ghost" onClick={() => setPwUserId(u.id)} title={t('users.changePassword')}><Key size={14} /></Button>
-                    <Button size="sm" variant="ghost" onClick={() => startEdit(u)} title={t('common.edit')}><Pencil size={14} /></Button>
-                    <Button size="sm" variant="ghost" onClick={() => deleteUser(u.id)} title={t('common.delete')}><Trash2 size={14} className="text-status-down" /></Button>
+                    <Button size="sm" variant="ghost" disabled={!canAct} onClick={() => openGroups(u.id)} title={canAct ? t('users.groups') : t('users.outOfScopeAction')}><ShieldCheck size={14} /></Button>
+                    <Button size="sm" variant="ghost" disabled={!canAct} onClick={() => setPwUserId(u.id)} title={canAct ? t('users.changePassword') : t('users.outOfScopeAction')}><Key size={14} /></Button>
+                    {isAdmin && <Button size="sm" variant="ghost" onClick={() => startEdit(u)} title={t('common.edit')}><Pencil size={14} /></Button>}
+                    {isAdmin && <Button size="sm" variant="ghost" onClick={() => deleteUser(u.id)} title={t('common.delete')}><Trash2 size={14} className="text-status-down" /></Button>}
                     <Button size="sm" variant="ghost" onClick={() => toggleExpand(u.id)} title={t('users.activity.details')}>
                       <ChevronDown size={14} className={cn('transition-transform', isExpanded && 'rotate-180')} />
                     </Button>
@@ -400,6 +439,45 @@ export function UsersPage() {
                 </div>
               )}
               </div>
+              {showGroupPanel && (
+                <div className="border-t border-border bg-bg-tertiary/40 px-5 py-4">
+                  <div className="text-xs text-text-muted mb-2">
+                    {t('users.permissionGroupsFor', { name: u.displayName || u.username })}
+                  </div>
+                  <div className="space-y-1.5">
+                    {(isAdmin ? groups : managedGroups).map(g => {
+                      const assigned = groupPanelGroups.some(ug => ug.id === g.id);
+                      return (
+                        <button
+                          key={g.id}
+                          onClick={() => toggleGroup(g.id, assigned)}
+                          className={cn(
+                            'w-full flex items-center justify-between px-3 py-1.5 rounded-md text-sm transition-colors',
+                            assigned ? 'bg-accent/10 text-accent border border-accent/30' : 'bg-bg-tertiary text-text-secondary hover:bg-bg-hover border border-transparent',
+                          )}
+                        >
+                          <span>{g.name}</span>
+                          {assigned && <Check size={14} />}
+                        </button>
+                      );
+                    })}
+                    {/* For non-admin managers, also surface the user's existing groups that they cannot manage (read-only) */}
+                    {!isAdmin && groupPanelGroups.filter(g => !managedGroups.some(mg => mg.id === g.id)).map(g => (
+                      <div
+                        key={`ro-${g.id}`}
+                        className="w-full flex items-center justify-between px-3 py-1.5 rounded-md text-sm bg-bg-tertiary/40 text-text-muted border border-border italic"
+                        title={t('users.outOfScopeGroup')}
+                      >
+                        <span>{g.name}</span>
+                        <Check size={14} />
+                      </div>
+                    ))}
+                    {(isAdmin ? groups : managedGroups).length === 0 && (
+                      <p className="text-xs text-text-muted">{t('users.noGroupsCreated')}</p>
+                    )}
+                  </div>
+                </div>
+              )}
               {isExpanded && (
                 <div className="border-t border-border bg-bg-tertiary/40 px-5 py-4 space-y-3">
                   {!detail ? (

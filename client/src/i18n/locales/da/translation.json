@@ -203,7 +203,13 @@
       "perAppHeader": "Seneste login pr. app",
       "noAppLogins": "Ingen SSO-logins endnu.",
       "never": "aldrig"
-    }
+    },
+    "groupsRequired": "Tilladelsesgrupper (påkrævet)",
+    "groupsOptional": "Tilladelsesgrupper (valgfrit)",
+    "noGroupsAvailable": "Ingen grupper tilgængelige.",
+    "errorGroupRequired": "Du skal vælge mindst én gruppe.",
+    "outOfScopeAction": "Uden for dit område — denne bruger tilhører en gruppe, du ikke administrerer",
+    "outOfScopeGroup": "Gruppe uden for dit område — skrivebeskyttet"
   },
   "groups": {
     "title": "Tilladelsesgrupper",
@@ -226,7 +232,13 @@
     "noTeam": "(intet hold)",
     "appConnectionError": "Kunne ikke oprette forbindelse til appen. Kontroller, at den kører, og at API-nøglen er konfigureret.",
     "noGroups": "Ingen tilladelsesgrupper endnu.",
-    "deleteConfirm": "Er du sikker på, at du vil slette denne gruppe?"
+    "deleteConfirm": "Er du sikker på, at du vil slette denne gruppe?",
+    "rename": "Omdøb",
+    "managers": "Administratorer",
+    "editManagers": "Rediger administratorer",
+    "noManagers": "Ingen administratorer for denne gruppe.",
+    "noEligibleManagers": "Ingen kvalificerede brugere (admins udelukket).",
+    "youManage": "Du administrerer"
   },
   "settings": {
     "title": "Indstillinger",
@@ -258,6 +270,8 @@
     "permissionGroups": "Tilladelsesgrupper",
     "directories": "Mapper",
     "settings": "Indstillinger",
-    "myAccount": "Min konto"
+    "myAccount": "Min konto",
+    "administration": "Administration",
+    "management": "Ledelse"
   }
 }

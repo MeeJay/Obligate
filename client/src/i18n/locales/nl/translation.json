@@ -203,7 +203,13 @@
       "perAppHeader": "Laatste login per app",
       "noAppLogins": "Nog geen SSO-aanmeldingen.",
       "never": "nooit"
-    }
+    },
+    "groupsRequired": "Permissiegroepen (verplicht)",
+    "groupsOptional": "Permissiegroepen (optioneel)",
+    "noGroupsAvailable": "Geen groepen beschikbaar.",
+    "errorGroupRequired": "U moet ten minste één groep selecteren.",
+    "outOfScopeAction": "Buiten uw bereik — deze gebruiker zit in een groep die u niet beheert",
+    "outOfScopeGroup": "Groep buiten uw bereik — alleen-lezen"
   },
   "groups": {
     "title": "Rechtengroepen",
@@ -226,7 +232,13 @@
     "noTeam": "(geen team)",
     "appConnectionError": "Kan geen verbinding maken met de app. Controleer of deze draait en de API-sleutel is geconfigureerd.",
     "noGroups": "Nog geen rechtengroepen.",
-    "deleteConfirm": "Weet u zeker dat u deze groep wilt verwijderen?"
+    "deleteConfirm": "Weet u zeker dat u deze groep wilt verwijderen?",
+    "rename": "Hernoemen",
+    "managers": "Beheerders",
+    "editManagers": "Beheerders bewerken",
+    "noManagers": "Geen beheerders voor deze groep.",
+    "noEligibleManagers": "Geen geschikte gebruikers (admins uitgesloten).",
+    "youManage": "U beheert"
   },
   "settings": {
     "title": "Instellingen",
@@ -258,6 +270,8 @@
     "permissionGroups": "Rechtengroepen",
     "directories": "Directory's",
     "settings": "Instellingen",
-    "myAccount": "Mijn account"
+    "myAccount": "Mijn account",
+    "administration": "Administratie",
+    "management": "Beheer"
   }
 }

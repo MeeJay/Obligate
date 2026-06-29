@@ -25,19 +25,27 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarPro
   const { t } = useTranslation();
   const { user, logout } = useAuthStore();
   const isAdmin = user?.role === 'admin';
+  const isManager = !isAdmin && !!user?.isGroupManager;
+  const showAdminSection = isAdmin || isManager;
 
   const mainItems: NavItem[] = [
     { path: '/',         icon: LayoutDashboard, label: t('sidebar.myApps') },
     { path: '/account',  icon: UserCircle,      label: t('sidebar.myAccount') },
   ];
 
-  const adminItems: NavItem[] = [
-    { path: '/apps',        icon: AppWindow,   label: t('sidebar.connectedApps'),    admin: true },
-    { path: '/users',       icon: Users,       label: t('sidebar.users'),            admin: true },
-    { path: '/groups',      icon: ShieldCheck, label: t('sidebar.permissionGroups'), admin: true },
-    { path: '/directories', icon: FolderTree,  label: t('sidebar.directories'),      admin: true },
-    { path: '/settings',    icon: Settings,    label: t('sidebar.settings'),         admin: true },
-  ];
+  const adminItems: NavItem[] = isAdmin
+    ? [
+        { path: '/apps',        icon: AppWindow,   label: t('sidebar.connectedApps') },
+        { path: '/users',       icon: Users,       label: t('sidebar.users') },
+        { path: '/groups',      icon: ShieldCheck, label: t('sidebar.permissionGroups') },
+        { path: '/directories', icon: FolderTree,  label: t('sidebar.directories') },
+        { path: '/settings',    icon: Settings,    label: t('sidebar.settings') },
+      ]
+    : [
+        // Managers: scoped user management + read-only group visibility.
+        { path: '/users',  icon: Users,       label: t('sidebar.users') },
+        { path: '/groups', icon: ShieldCheck, label: t('sidebar.permissionGroups') },
+      ];
 
   const isActive = (path: string) =>
     location.pathname === path || (path !== '/' && location.pathname.startsWith(path + '/'));
@@ -63,11 +71,11 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarPro
       <nav className={cn('flex-1 overflow-y-auto px-2 pt-2 space-y-1', collapsed && 'px-2')}>
         <NavSection collapsed={collapsed} items={mainItems} isActive={isActive} onNavigate={onNavigate} />
 
-        {isAdmin && (
+        {showAdminSection && (
           <>
             {!collapsed && (
               <div className="mt-4 px-2 pb-1.5 pt-1 text-[11px] font-mono font-medium uppercase tracking-[0.14em] text-text-muted">
-                {t('sidebar.administration', 'Administration')}
+                {isAdmin ? t('sidebar.administration', 'Administration') : t('sidebar.management', 'Management')}
               </div>
             )}
             {collapsed && (

@@ -203,7 +203,13 @@
       "perAppHeader": "Letzte Anmeldung pro App",
       "noAppLogins": "Noch keine SSO-Anmeldungen.",
       "never": "nie"
-    }
+    },
+    "groupsRequired": "Berechtigungsgruppen (erforderlich)",
+    "groupsOptional": "Berechtigungsgruppen (optional)",
+    "noGroupsAvailable": "Keine Gruppen verfügbar.",
+    "errorGroupRequired": "Sie müssen mindestens eine Gruppe auswählen.",
+    "outOfScopeAction": "Außerhalb Ihres Bereichs — dieser Benutzer gehört einer nicht verwalteten Gruppe an",
+    "outOfScopeGroup": "Gruppe außerhalb Ihres Bereichs — schreibgeschützt"
   },
   "groups": {
     "title": "Berechtigungsgruppen",
@@ -226,7 +232,13 @@
     "noTeam": "(kein Team)",
     "appConnectionError": "Verbindung zur App konnte nicht hergestellt werden. Überprüfen Sie, ob sie läuft und der API-Schlüssel konfiguriert ist.",
     "noGroups": "Noch keine Berechtigungsgruppen.",
-    "deleteConfirm": "Sind Sie sicher, dass Sie diese Gruppe löschen möchten?"
+    "deleteConfirm": "Sind Sie sicher, dass Sie diese Gruppe löschen möchten?",
+    "rename": "Umbenennen",
+    "managers": "Manager",
+    "editManagers": "Manager bearbeiten",
+    "noManagers": "Keine Manager für diese Gruppe.",
+    "noEligibleManagers": "Keine berechtigten Benutzer (Admins ausgeschlossen).",
+    "youManage": "Sie verwalten"
   },
   "settings": {
     "title": "Einstellungen",
@@ -258,6 +270,8 @@
     "permissionGroups": "Berechtigungsgruppen",
     "directories": "Verzeichnisse",
     "settings": "Einstellungen",
-    "myAccount": "Mein Konto"
+    "myAccount": "Mein Konto",
+    "administration": "Verwaltung",
+    "management": "Management"
   }
 }

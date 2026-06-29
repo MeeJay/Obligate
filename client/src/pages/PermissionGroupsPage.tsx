@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, ChevronDown, ChevronRight, Power, Check, Lock } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, Power, Check, Lock, Pencil, UserCog, X } from 'lucide-react';
 import apiClient from '../api/client';
+import { useAuthStore } from '../store/authStore';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { cn } from '../utils/cn';
-import type { PermissionGroup, PermissionGroupAppMapping, ConnectedApp } from '@obligate/shared';
+import type { PermissionGroup, PermissionGroupAppMapping, ConnectedApp, ObligateUser } from '@obligate/shared';
 
 interface RemoteAppInfo {
   roles: string[];
@@ -26,8 +27,12 @@ const APP_COLORS: Record<string, string> = {
 
 export function PermissionGroupsPage() {
   const { t } = useTranslation();
+  const { user: currentUser } = useAuthStore();
+  const isAdmin = currentUser?.role === 'admin';
   const [groups, setGroups] = useState<PermissionGroup[]>([]);
+  const [groupManagers, setGroupManagers] = useState<Record<number, number[]>>({});
   const [apps, setApps] = useState<ConnectedApp[]>([]);
+  const [allUsers, setAllUsers] = useState<ObligateUser[]>([]);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [mappings, setMappings] = useState<PermissionGroupAppMapping[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -35,18 +40,51 @@ export function PermissionGroupsPage() {
   const [saving, setSaving] = useState(false);
   const [expandedTenants, setExpandedTenants] = useState<Set<string>>(new Set());
 
+  // Rename state — one group at a time
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  // Managers picker state
+  const [managersPickerOpen, setManagersPickerOpen] = useState<number | null>(null);
+
   // Remote info cache per app (roles + tenants + teams + permission sets)
   const [remoteInfoMap, setRemoteInfoMap] = useState<Record<number, RemoteAppInfo | null>>({});
   const [loadingApps, setLoadingApps] = useState<Set<number>>(new Set());
   const fetchedRef = useRef<Set<number>>(new Set());
 
   const load = async () => {
-    const [g, a] = await Promise.all([
+    const [g, a, u] = await Promise.all([
       apiClient.get('/admin/permission-groups'),
-      apiClient.get('/admin/apps'),
+      isAdmin ? apiClient.get('/admin/apps').catch(() => ({ data: { success: false } })) : Promise.resolve({ data: { success: true, data: [] } }),
+      isAdmin ? apiClient.get('/admin/users').catch(() => ({ data: { success: false } })) : Promise.resolve({ data: { success: true, data: [] } }),
     ]);
-    if (g.data.success) setGroups(g.data.data);
+    if (g.data.success) {
+      setGroups(g.data.data);
+      if (g.data.managers) setGroupManagers(g.data.managers);
+    }
     if (a.data.success) setApps(a.data.data);
+    if (u.data.success) setAllUsers(u.data.data);
+  };
+
+  const handleRenameStart = (g: PermissionGroup) => {
+    setRenamingId(g.id);
+    setRenameValue(g.name);
+  };
+
+  const handleRenameSave = async (id: number) => {
+    if (!renameValue.trim()) { setRenamingId(null); return; }
+    await apiClient.put(`/admin/permission-groups/${id}`, { name: renameValue.trim() });
+    setRenamingId(null);
+    load();
+  };
+
+  const toggleManager = async (groupId: number, userId: number) => {
+    const current = groupManagers[groupId] ?? [];
+    const next = current.includes(userId)
+      ? current.filter(id => id !== userId)
+      : [...current, userId];
+    await apiClient.put(`/admin/permission-groups/${groupId}/managers`, { userIds: next });
+    setGroupManagers(prev => ({ ...prev, [groupId]: next }));
   };
 
   useEffect(() => { load(); }, []);
@@ -288,12 +326,14 @@ export function PermissionGroupsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-text-primary">{t('groups.title')}</h1>
-        <Button size="sm" onClick={() => setShowForm(true)}>
-          <Plus size={16} className="mr-1.5" /> {t('groups.addGroup')}
-        </Button>
+        {isAdmin && (
+          <Button size="sm" onClick={() => setShowForm(true)}>
+            <Plus size={16} className="mr-1.5" /> {t('groups.addGroup')}
+          </Button>
+        )}
       </div>
 
-      {showForm && (
+      {showForm && isAdmin && (
         <div className="bg-bg-secondary border border-border rounded-lg p-5 mb-6">
           <h2 className="text-lg font-medium text-text-primary mb-4">{t('groups.createGroup')}</h2>
           <form onSubmit={handleCreateGroup} className="space-y-4">
@@ -310,21 +350,119 @@ export function PermissionGroupsPage() {
       <div className="space-y-2">
         {groups.map(group => (
           <div key={group.id} className="bg-bg-secondary border border-border rounded-lg overflow-hidden">
-            <div className="px-5 py-4 flex items-center justify-between">
-              <button onClick={() => toggleExpand(group.id)} className="flex items-center gap-2 text-left flex-1">
-                {expanded === group.id ? <ChevronDown size={16} className="text-text-muted" /> : <ChevronRight size={16} className="text-text-muted" />}
-                <div>
-                  <span className="text-text-primary font-medium">{group.name}</span>
-                  {group.description && <p className="text-xs text-text-muted mt-0.5">{group.description}</p>}
+            <div className="px-5 py-4 flex items-center justify-between gap-2">
+              <button
+                onClick={() => isAdmin && toggleExpand(group.id)}
+                disabled={!isAdmin}
+                className={cn(
+                  'flex items-center gap-2 text-left flex-1 min-w-0',
+                  !isAdmin && 'cursor-default',
+                )}
+              >
+                {isAdmin && (expanded === group.id ? <ChevronDown size={16} className="text-text-muted shrink-0" /> : <ChevronRight size={16} className="text-text-muted shrink-0" />)}
+                <div className="min-w-0">
+                  {renamingId === group.id ? (
+                    <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                      <input
+                        autoFocus
+                        value={renameValue}
+                        onChange={e => setRenameValue(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleRenameSave(group.id);
+                          if (e.key === 'Escape') setRenamingId(null);
+                        }}
+                        className="rounded-md border border-border bg-bg-tertiary px-2 py-1 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent"
+                      />
+                      <button onClick={() => handleRenameSave(group.id)} className="text-status-up hover:opacity-80"><Check size={14} /></button>
+                      <button onClick={() => setRenamingId(null)} className="text-text-muted hover:text-text-primary"><X size={14} /></button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="text-text-primary font-medium">{group.name}</span>
+                        {!isAdmin && currentUser && (groupManagers[group.id] ?? []).includes(currentUser.id) && (
+                          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-accent bg-accent/10 border border-accent/30 px-1.5 py-0.5 rounded">
+                            <UserCog size={10} />{t('groups.youManage')}
+                          </span>
+                        )}
+                      </div>
+                      {group.description && <p className="text-xs text-text-muted mt-0.5">{group.description}</p>}
+                    </>
+                  )}
                 </div>
               </button>
-              <Button size="sm" variant="ghost" onClick={() => handleDeleteGroup(group.id)}>
-                <Trash2 size={14} className="text-status-down" />
-              </Button>
+              {isAdmin && renamingId !== group.id && (
+                <>
+                  <Button size="sm" variant="ghost" onClick={() => handleRenameStart(group)} title={t('groups.rename')}>
+                    <Pencil size={14} />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => handleDeleteGroup(group.id)} title={t('common.delete')}>
+                    <Trash2 size={14} className="text-status-down" />
+                  </Button>
+                </>
+              )}
             </div>
 
             {expanded === group.id && (
               <div className="border-t border-border px-5 py-4 bg-bg-primary/50">
+                {/* Managers section — admin only */}
+                {isAdmin && (
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-text-secondary font-medium inline-flex items-center gap-1.5">
+                        <UserCog size={12} /> {t('groups.managers')}
+                      </p>
+                      <button
+                        onClick={() => setManagersPickerOpen(managersPickerOpen === group.id ? null : group.id)}
+                        className="text-xs text-accent hover:underline"
+                      >
+                        {managersPickerOpen === group.id ? t('common.close') : t('groups.editManagers')}
+                      </button>
+                    </div>
+                    {(() => {
+                      const managerIds = groupManagers[group.id] ?? [];
+                      const managerUsers = allUsers.filter(u => managerIds.includes(u.id));
+                      if (managerUsers.length === 0 && managersPickerOpen !== group.id) {
+                        return <p className="text-xs text-text-muted italic">{t('groups.noManagers')}</p>;
+                      }
+                      return (
+                        <div className="flex flex-wrap gap-1.5">
+                          {managerUsers.map(u => (
+                            <span key={u.id} className="inline-flex items-center gap-1 text-[11px] bg-accent/10 text-accent border border-accent/30 px-2 py-0.5 rounded">
+                              {u.displayName || u.username}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                    {managersPickerOpen === group.id && (
+                      <div className="mt-3 rounded-md border border-border bg-bg-tertiary/40 p-2 max-h-56 overflow-y-auto space-y-1">
+                        {allUsers
+                          .filter(u => u.role !== 'admin' && u.isActive)
+                          .map(u => {
+                            const checked = (groupManagers[group.id] ?? []).includes(u.id);
+                            return (
+                              <button
+                                key={u.id}
+                                onClick={() => toggleManager(group.id, u.id)}
+                                className={cn(
+                                  'w-full flex items-center justify-between px-2 py-1 rounded text-xs transition-colors',
+                                  checked ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:bg-bg-hover',
+                                )}
+                              >
+                                <span>{u.displayName || u.username} <span className="text-text-muted">@{u.username}</span></span>
+                                {checked && <Check size={12} />}
+                              </button>
+                            );
+                          })}
+                        {allUsers.filter(u => u.role !== 'admin' && u.isActive).length === 0 && (
+                          <p className="text-xs text-text-muted italic">{t('groups.noEligibleManagers')}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <p className="text-xs text-text-secondary font-medium mb-4">{t('groups.appMappings')}</p>
 
                 {apps.length === 0 ? (

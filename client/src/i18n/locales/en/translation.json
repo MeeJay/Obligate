@@ -183,6 +183,12 @@
     "noMatch": "No users match your search.",
     "noUsers": "No users yet.",
     "deleteConfirm": "Are you sure you want to delete this user?",
+    "groupsRequired": "Permission groups (required)",
+    "groupsOptional": "Permission groups (optional)",
+    "noGroupsAvailable": "No groups available.",
+    "errorGroupRequired": "You must select at least one group.",
+    "outOfScopeAction": "Out of your scope — this user belongs to a group you don't manage",
+    "outOfScopeGroup": "Group outside your scope — read-only",
     "activity": {
       "details": "Activity details",
       "twoFactor": "2FA",
@@ -227,7 +233,13 @@
     "noTeamAccess": "No team access — all teams are restricted by default",
     "appConnectionError": "Could not connect to the app. Check that it is running and the API key is configured.",
     "noGroups": "No permission groups yet.",
-    "deleteConfirm": "Are you sure you want to delete this group?"
+    "deleteConfirm": "Are you sure you want to delete this group?",
+    "rename": "Rename",
+    "managers": "Managers",
+    "editManagers": "Edit managers",
+    "noManagers": "No managers assigned to this group.",
+    "noEligibleManagers": "No eligible users (admins excluded).",
+    "youManage": "You manage"
   },
   "settings": {
     "title": "Settings",
@@ -259,6 +271,8 @@
     "permissionGroups": "Permission Groups",
     "directories": "Directories",
     "settings": "Settings",
-    "myAccount": "My Account"
+    "myAccount": "My Account",
+    "administration": "Administration",
+    "management": "Management"
   }
 }

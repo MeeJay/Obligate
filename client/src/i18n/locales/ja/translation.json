@@ -203,7 +203,13 @@
       "perAppHeader": "アプリ別の最終ログイン",
       "noAppLogins": "SSO ログインはまだありません。",
       "never": "なし"
-    }
+    },
+    "groupsRequired": "権限グループ（必須）",
+    "groupsOptional": "権限グループ（任意）",
+    "noGroupsAvailable": "利用可能なグループがありません。",
+    "errorGroupRequired": "少なくとも 1 つのグループを選択する必要があります。",
+    "outOfScopeAction": "範囲外 — このユーザーは管理外のグループに属しています",
+    "outOfScopeGroup": "範囲外のグループ — 読み取り専用"
   },
   "groups": {
     "title": "権限グループ",
@@ -226,7 +232,13 @@
     "noTeam": "（チームなし）",
     "appConnectionError": "アプリに接続できませんでした。アプリが実行中であり、API キーが設定されていることを確認してください。",
     "noGroups": "権限グループはまだありません。",
-    "deleteConfirm": "このグループを削除してもよろしいですか？"
+    "deleteConfirm": "このグループを削除してもよろしいですか？",
+    "rename": "名前変更",
+    "managers": "マネージャー",
+    "editManagers": "マネージャーを編集",
+    "noManagers": "このグループにマネージャーはいません。",
+    "noEligibleManagers": "対象ユーザーがいません（管理者を除く）。",
+    "youManage": "あなたが管理"
   },
   "settings": {
     "title": "設定",
@@ -258,6 +270,8 @@
     "permissionGroups": "権限グループ",
     "directories": "ディレクトリ",
     "settings": "設定",
-    "myAccount": "マイアカウント"
+    "myAccount": "マイアカウント",
+    "administration": "管理",
+    "management": "管理"
   }
 }

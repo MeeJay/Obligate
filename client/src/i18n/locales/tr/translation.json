@@ -203,7 +203,13 @@
       "perAppHeader": "Uygulama başına son giriş",
       "noAppLogins": "Henüz SSO girişi yok.",
       "never": "hiç"
-    }
+    },
+    "groupsRequired": "İzin grupları (zorunlu)",
+    "groupsOptional": "İzin grupları (isteğe bağlı)",
+    "noGroupsAvailable": "Kullanılabilir grup yok.",
+    "errorGroupRequired": "En az bir grup seçmelisiniz.",
+    "outOfScopeAction": "Kapsamınızın dışında — bu kullanıcı yönetmediğiniz bir gruba ait",
+    "outOfScopeGroup": "Kapsamınız dışında grup — salt okunur"
   },
   "groups": {
     "title": "İzin Grupları",
@@ -226,7 +232,13 @@
     "noTeam": "(takım yok)",
     "appConnectionError": "Uygulamaya bağlanılamadı. Çalıştığından ve API anahtarının yapılandırıldığından emin olun.",
     "noGroups": "Henüz izin grubu yok.",
-    "deleteConfirm": "Bu grubu silmek istediğinizden emin misiniz?"
+    "deleteConfirm": "Bu grubu silmek istediğinizden emin misiniz?",
+    "rename": "Yeniden adlandır",
+    "managers": "Yöneticiler",
+    "editManagers": "Yöneticileri düzenle",
+    "noManagers": "Bu grup için yönetici yok.",
+    "noEligibleManagers": "Uygun kullanıcı yok (adminler hariç).",
+    "youManage": "Yönetiyorsunuz"
   },
   "settings": {
     "title": "Ayarlar",
@@ -258,6 +270,8 @@
     "permissionGroups": "İzin Grupları",
     "directories": "Dizinler",
     "settings": "Ayarlar",
-    "myAccount": "Hesabım"
+    "myAccount": "Hesabım",
+    "administration": "Yönetim",
+    "management": "Yönetim"
   }
 }

@@ -203,7 +203,13 @@
       "perAppHeader": "每个应用的上次登录",
       "noAppLogins": "尚无 SSO 登录。",
       "never": "从未"
-    }
+    },
+    "groupsRequired": "权限组（必需）",
+    "groupsOptional": "权限组（可选）",
+    "noGroupsAvailable": "无可用组。",
+    "errorGroupRequired": "您必须至少选择一个组。",
+    "outOfScopeAction": "超出您的范围 — 该用户属于您不管理的组",
+    "outOfScopeGroup": "组超出您的范围 — 只读"
   },
   "groups": {
     "title": "权限组",
@@ -226,7 +232,13 @@
     "noTeam": "（无团队）",
     "appConnectionError": "无法连接到应用。请检查应用是否正在运行以及 API 密钥是否已配置。",
     "noGroups": "还没有权限组。",
-    "deleteConfirm": "确定要删除此组吗？"
+    "deleteConfirm": "确定要删除此组吗？",
+    "rename": "重命名",
+    "managers": "管理者",
+    "editManagers": "编辑管理者",
+    "noManagers": "此组没有管理者。",
+    "noEligibleManagers": "没有合适的用户（已排除管理员）。",
+    "youManage": "您管理"
   },
   "settings": {
     "title": "设置",
@@ -258,6 +270,8 @@
     "permissionGroups": "权限组",
     "directories": "目录",
     "settings": "设置",
-    "myAccount": "我的帐户"
+    "myAccount": "我的帐户",
+    "administration": "管理",
+    "management": "管理"
   }
 }

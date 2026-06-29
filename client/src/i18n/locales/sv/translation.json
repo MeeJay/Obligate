@@ -203,7 +203,13 @@
       "perAppHeader": "Senaste inloggning per app",
       "noAppLogins": "Inga SSO-inloggningar ännu.",
       "never": "aldrig"
-    }
+    },
+    "groupsRequired": "Behörighetsgrupper (obligatoriskt)",
+    "groupsOptional": "Behörighetsgrupper (valfritt)",
+    "noGroupsAvailable": "Inga grupper tillgängliga.",
+    "errorGroupRequired": "Du måste välja minst en grupp.",
+    "outOfScopeAction": "Utanför ditt område — den här användaren tillhör en grupp du inte hanterar",
+    "outOfScopeGroup": "Gruppen är utanför ditt område — skrivskyddad"
   },
   "groups": {
     "title": "Behörighetsgrupper",
@@ -226,7 +232,13 @@
     "noTeam": "(inget team)",
     "appConnectionError": "Kunde inte ansluta till appen. Kontrollera att den körs och att API-nyckeln är konfigurerad.",
     "noGroups": "Inga behörighetsgrupper ännu.",
-    "deleteConfirm": "Är du säker på att du vill ta bort denna grupp?"
+    "deleteConfirm": "Är du säker på att du vill ta bort denna grupp?",
+    "rename": "Byt namn",
+    "managers": "Hanterare",
+    "editManagers": "Redigera hanterare",
+    "noManagers": "Inga hanterare för den här gruppen.",
+    "noEligibleManagers": "Inga lämpliga användare (admins exkluderade).",
+    "youManage": "Du hanterar"
   },
   "settings": {
     "title": "Inställningar",
@@ -258,6 +270,8 @@
     "permissionGroups": "Behörighetsgrupper",
     "directories": "Kataloger",
     "settings": "Inställningar",
-    "myAccount": "Mitt konto"
+    "myAccount": "Mitt konto",
+    "administration": "Administration",
+    "management": "Hantering"
   }
 }

@@ -203,7 +203,13 @@
       "perAppHeader": "آخر تسجيل دخول لكل تطبيق",
       "noAppLogins": "لا توجد تسجيلات دخول SSO.",
       "never": "أبدًا"
-    }
+    },
+    "groupsRequired": "مجموعات الأذونات (مطلوب)",
+    "groupsOptional": "مجموعات الأذونات (اختياري)",
+    "noGroupsAvailable": "لا توجد مجموعات متاحة.",
+    "errorGroupRequired": "يجب اختيار مجموعة واحدة على الأقل.",
+    "outOfScopeAction": "خارج نطاقك — هذا المستخدم ينتمي إلى مجموعة لا تديرها",
+    "outOfScopeGroup": "المجموعة خارج نطاقك — للقراءة فقط"
   },
   "groups": {
     "title": "مجموعات الأذونات",
@@ -226,7 +232,13 @@
     "noTeam": "(بدون فريق)",
     "appConnectionError": "تعذر الاتصال بالتطبيق. تأكد من أنه يعمل وأن مفتاح API مكوّن.",
     "noGroups": "لا توجد مجموعات أذونات بعد.",
-    "deleteConfirm": "هل أنت متأكد أنك تريد حذف هذه المجموعة؟"
+    "deleteConfirm": "هل أنت متأكد أنك تريد حذف هذه المجموعة؟",
+    "rename": "إعادة تسمية",
+    "managers": "المديرون",
+    "editManagers": "تعديل المديرين",
+    "noManagers": "لا يوجد مديرون لهذه المجموعة.",
+    "noEligibleManagers": "لا يوجد مستخدمون مؤهلون (باستثناء المسؤولين).",
+    "youManage": "أنت تدير"
   },
   "settings": {
     "title": "الإعدادات",
@@ -258,6 +270,8 @@
     "permissionGroups": "مجموعات الأذونات",
     "directories": "الدلائل",
     "settings": "الإعدادات",
-    "myAccount": "حسابي"
+    "myAccount": "حسابي",
+    "administration": "الإدارة",
+    "management": "إدارة"
   }
 }

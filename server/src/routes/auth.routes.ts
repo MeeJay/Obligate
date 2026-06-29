@@ -72,10 +72,14 @@ authRoutes.get('/me', requireAuth, async (req, res) => {
     const cfg = await configService.getAll();
     const smtpConfigured = !!(cfg.smtpHost && cfg.smtpFrom);
     const requires2faSetup = cfg.force2fa && !row?.totp_enabled;
+
+    const isGroupManager = user.role !== 'admin' && (await db('permission_group_managers')
+      .where({ user_id: user.id }).count<[{ count: string }]>({ count: '*' }).first())?.count !== '0';
+
     res.json({
       success: true,
       data: {
-        user: { ...user, enrollmentVersion },
+        user: { ...user, enrollmentVersion, isGroupManager },
         requiresEnrollment: enrollmentVersion < REQUIRED_ENROLLMENT_VERSION,
         requires2faSetup,
         smtpConfigured,

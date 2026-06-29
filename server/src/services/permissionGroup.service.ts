@@ -238,4 +238,79 @@ export const permissionGroupService = {
 
     return { role, tenants, teams };
   },
+
+  // ── Group Managers ───────────────────────────────────────────
+
+  async setManagers(groupId: number, userIds: number[]): Promise<void> {
+    await db.transaction(async (trx) => {
+      await trx('permission_group_managers').where({ group_id: groupId }).del();
+      if (userIds.length > 0) {
+        await trx('permission_group_managers').insert(
+          userIds.map(uid => ({ group_id: groupId, user_id: uid })),
+        );
+      }
+    });
+  },
+
+  async getManagersForGroup(groupId: number): Promise<number[]> {
+    const rows = await db('permission_group_managers').where({ group_id: groupId })
+      .pluck('user_id') as number[];
+    return rows;
+  },
+
+  async getAllGroupManagers(): Promise<Record<number, number[]>> {
+    const rows = await db('permission_group_managers').select('group_id', 'user_id') as Array<{
+      group_id: number; user_id: number;
+    }>;
+    const result: Record<number, number[]> = {};
+    for (const r of rows) {
+      if (!result[r.group_id]) result[r.group_id] = [];
+      result[r.group_id].push(r.user_id);
+    }
+    return result;
+  },
+
+  /** Returns the IDs of groups this user manages. */
+  async getManagedGroupIds(userId: number): Promise<number[]> {
+    const rows = await db('permission_group_managers').where({ user_id: userId })
+      .pluck('group_id') as number[];
+    return rows;
+  },
+
+  /**
+   * True iff the actor is allowed to act on the target user.
+   * Rule: actor is admin, OR target has ≥1 group AND every group of target
+   * is managed by actor.
+   */
+  async canActOnUser(actorId: number, actorRole: string, targetId: number): Promise<boolean> {
+    if (actorRole === 'admin') return true;
+    const targetGroupIds = await db('user_permission_groups')
+      .where({ user_id: targetId })
+      .pluck('group_id') as number[];
+    if (targetGroupIds.length === 0) return false;
+    const managed = new Set(await this.getManagedGroupIds(actorId));
+    return targetGroupIds.every(gid => managed.has(gid));
+  },
+
+  /** IDs of users the actor can act on (anyone whose groups ⊆ actor's managed groups). */
+  async getActionableUserIds(actorId: number): Promise<number[]> {
+    const managed = await this.getManagedGroupIds(actorId);
+    if (managed.length === 0) return [];
+    const rows = await db('user_permission_groups')
+      .select('user_id')
+      .groupBy('user_id')
+      .havingRaw('bool_and(group_id = ANY(?))', [managed]) as Array<{ user_id: number }>;
+    return rows.map(r => r.user_id);
+  },
+
+  /** IDs of users with ≥1 group managed by the actor (visible but not necessarily actionable). */
+  async getVisibleUserIds(actorId: number): Promise<number[]> {
+    const managed = await this.getManagedGroupIds(actorId);
+    if (managed.length === 0) return [];
+    const rows = await db('user_permission_groups')
+      .whereIn('group_id', managed)
+      .select('user_id')
+      .groupBy('user_id') as Array<{ user_id: number }>;
+    return rows.map(r => r.user_id);
+  },
 };

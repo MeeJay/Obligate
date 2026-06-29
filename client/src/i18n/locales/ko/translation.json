@@ -203,7 +203,13 @@
       "perAppHeader": "앱별 마지막 로그인",
       "noAppLogins": "아직 SSO 로그인이 없습니다.",
       "never": "없음"
-    }
+    },
+    "groupsRequired": "권한 그룹(필수)",
+    "groupsOptional": "권한 그룹(선택)",
+    "noGroupsAvailable": "사용 가능한 그룹이 없습니다.",
+    "errorGroupRequired": "최소한 하나의 그룹을 선택해야 합니다.",
+    "outOfScopeAction": "범위 밖 — 이 사용자는 관리하지 않는 그룹에 속해 있습니다",
+    "outOfScopeGroup": "범위 밖 그룹 — 읽기 전용"
   },
   "groups": {
     "title": "권한 그룹",
@@ -226,7 +232,13 @@
     "noTeam": "(팀 없음)",
     "appConnectionError": "앱에 연결할 수 없습니다. 앱이 실행 중이고 API 키가 구성되어 있는지 확인하세요.",
     "noGroups": "아직 권한 그룹이 없습니다.",
-    "deleteConfirm": "이 그룹을 삭제하시겠습니까?"
+    "deleteConfirm": "이 그룹을 삭제하시겠습니까?",
+    "rename": "이름 변경",
+    "managers": "관리자",
+    "editManagers": "관리자 편집",
+    "noManagers": "이 그룹에 관리자가 없습니다.",
+    "noEligibleManagers": "적합한 사용자가 없습니다(관리자 제외).",
+    "youManage": "관리 중"
   },
   "settings": {
     "title": "설정",
@@ -258,6 +270,8 @@
     "permissionGroups": "권한 그룹",
     "directories": "디렉토리",
     "settings": "설정",
-    "myAccount": "내 계정"
+    "myAccount": "내 계정",
+    "administration": "관리",
+    "management": "관리"
   }
 }
