@@ -5,7 +5,7 @@
 // are forwarded as-is so apps that don't ship their own implementation
 // can render the theme from these values.
 
-export type ThemeAppKey = 'obliview' | 'obliguard' | 'oblimap' | 'obliance' | 'oblihub';
+export type ThemeAppKey = 'obliview' | 'obliguard' | 'oblimap' | 'obliance' | 'obliplan' | 'oblihub';
 
 export interface ThemeAppAccent {
   accent: string;
@@ -66,6 +66,7 @@ export const OBLI_OPERATOR_THEME: ThemeDefinition = {
     obliguard: { accent: '245 166 35',  hover: '255 184 74',  dark: '184 124 24' },
     oblimap:   { accent: '30 221 138',  hover: '92 240 168',  dark: '20 165 105' },
     obliance:  { accent: '224 58 58',   hover: '255 104 104', dark: '180 30 30'  },
+    obliplan:  { accent: '124 108 255', hover: '157 140 255', dark: '86 70 200'  },
     oblihub:   { accent: '45 78 201',   hover: '90 120 232',  dark: '30 56 158'  },
   },
 

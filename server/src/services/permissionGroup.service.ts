@@ -202,10 +202,25 @@ export const permissionGroupService = {
       return { role: '', tenants: [], teams: [] };
     }
 
-    // Highest privilege wins for global role
-    let role = 'viewer';
-    if (mappings.some(m => m.app_role === 'admin')) role = 'admin';
-    else if (mappings.some(m => m.app_role === 'user')) role = 'user';
+    // Platform-wide ("global") role is derived ONLY from app-wide mappings
+    // — those with NO tenant_slug, i.e. the "All tenants" toggle in the
+    // Permission Groups UI. This is what makes the SSO model coherent for
+    // relying-party apps (Obliance et al.):
+    //
+    //   • "Admin on All tenants"      (tenant_slug = NULL, admin) → global/platform admin
+    //   • "Admin on a specific tenant" (tenant_slug = 'x',  admin) → tenant admin only
+    //                                                                 (carried in tenants[] below)
+    //
+    // A user who only has tenant-scoped mappings still gets app access with
+    // a baseline 'user' platform role (never '' — that would deny access).
+    // Previously ANY admin mapping (even one tenant) set role='admin',
+    // which silently turned tenant admins into platform admins on every app.
+    const appWide = mappings.filter(m => !m.tenant_slug);
+    let role: string;
+    if (appWide.some(m => m.app_role === 'admin')) role = 'admin';
+    else if (appWide.some(m => m.app_role === 'user')) role = 'user';
+    else if (appWide.length > 0) role = appWide[0].app_role; // viewer / custom slug
+    else role = 'user'; // only tenant-scoped mappings → access yes, global admin no
 
     // Per-tenant role (highest wins)
     const tenantRoleMap = new Map<string, string>();
